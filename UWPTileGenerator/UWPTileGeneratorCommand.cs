@@ -11,6 +11,11 @@ using EnvDTE80;
 using EnvDTE;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
+using System.Xml;
+using System.Xml.Linq;
+using System.IO;
+using System.Drawing;
+using System.Drawing.Drawing2D;
 
 namespace UWPTileGenerator
 {
@@ -104,6 +109,19 @@ namespace UWPTileGenerator
 		{
 			var dte = (DTE2)this.ServiceProvider.GetService(typeof(DTE));
 			var hierarchy = dte.ToolWindows.SolutionExplorer;
+			var selectedItems = (Array)hierarchy.SelectedItems;
+
+			if (selectedItems != null)
+			{
+				foreach (UIHierarchyItem selectedItem in selectedItems)
+				{
+					var projectItem = selectedItem.Object as ProjectItem;
+					var path = projectItem.Properties.Item("FullPath").Value.ToString();
+					outputWindow.OutputString($"The selected file is located at {path} \n");
+					this.GenerateTiles(path);
+				}
+			}
+
 			var solutionRoot = hierarchy.UIHierarchyItems.Item(1);
 
 			for (int i = 1; i <= solutionRoot.UIHierarchyItems.Count; i++)
@@ -115,21 +133,60 @@ namespace UWPTileGenerator
 					if (uiHierarchy.Name.Equals("Package.appxmanifest"))
 					{
 						var projectItem = uiHierarchy.Object as ProjectItem;
-						outputWindow.OutputString($"The package manifest is located at {projectItem.Properties.Item("FullPath").Value.ToString()} \n");
+						var path = projectItem.Properties.Item("FullPath").Value.ToString();
+						outputWindow.OutputString($"The package manifest is located at {path} \n");
+						this.ManipulatePackageManifest(path);
 					}
 				}
 			}
+		}
 
-			var selectedItems = (Array)hierarchy.SelectedItems;
+		private void ManipulatePackageManifest(string path)
+		{
+			var xdocument = XDocument.Load(File.OpenRead(path));
+			//xdocument.Save(path, SaveOptions.None);
+		}
 
-			if (selectedItems != null)
+		private void GenerateTiles(string path)
+		{
+			var originalImage = Image.FromFile(path);
+			var resizedImage = ResizeImage(originalImage, new Size(500, 500), true);
+
+			var director = Path.GetDirectoryName(path);
+			var fileName = Path.GetFileNameWithoutExtension(path);
+
+			resizedImage.Save(Path.Combine(director, fileName + "-scaled.png"));
+		}
+
+		public static Image ResizeImage(Image image, Size size, bool preserveAspectRatio = true)
+		{
+			int newWidth;
+			int newHeight;
+			if (preserveAspectRatio)
 			{
-				foreach (UIHierarchyItem selectedItem in selectedItems)
-				{
-					var projectItem = selectedItem.Object as ProjectItem;
-					outputWindow.OutputString($"The selected file is located at {projectItem.Properties.Item("FullPath").Value.ToString()} \n");
-				}
+				int originalWidth = image.Width;
+				int originalHeight = image.Height;
+				float percentWidth = (float)size.Width / (float)originalWidth;
+				float percentHeight = (float)size.Height / (float)originalHeight;
+				float percent = percentHeight < percentWidth ? percentHeight : percentWidth;
+				newWidth = (int)(originalWidth * percent);
+				newHeight = (int)(originalHeight * percent);
 			}
+			else
+			{
+				newWidth = size.Width;
+				newHeight = size.Height;
+			}
+
+			var newImage = new Bitmap(newWidth, newHeight);
+
+			using (Graphics graphicsHandle = Graphics.FromImage(newImage))
+			{
+				graphicsHandle.InterpolationMode = InterpolationMode.HighQualityBicubic;
+				graphicsHandle.DrawImage(image, 0, 0, newWidth, newHeight);
+			}
+
+			return newImage;
 		}
 	}
 }
