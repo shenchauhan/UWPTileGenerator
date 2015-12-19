@@ -89,9 +89,9 @@ namespace UWPTileGenerator
 			this.tileSizes.Add("Square150x150Logo.scale-400.png", new Size(600, 600));
 
 			// Wide							 
-			this.tileSizes.Add("Square310x150Logo.scale-100.png", new Size(310, 150));
-			this.tileSizes.Add("Square310x150Logo.scale-200.png", new Size(620, 300));
-			this.tileSizes.Add("Square310x150Logo.scale-400.png", new Size(1240, 600));
+			this.tileSizes.Add("Wide310x150Logo.scale-100.png", new Size(310, 150));
+			this.tileSizes.Add("Wide310x150Logo.scale-200.png", new Size(620, 300));
+			this.tileSizes.Add("Wide310x150Logo.scale-400.png", new Size(1240, 600));
 
 			// Large						 
 			this.tileSizes.Add("Square310x310Logo.scale-100.png", new Size(310, 310));
@@ -199,20 +199,21 @@ namespace UWPTileGenerator
 		private void ManipulatePackageManifest(string path)
 		{
 			var xdocument = XDocument.Parse(File.ReadAllText(path));
+			var xmlNamespace = "http://schemas.microsoft.com/appx/manifest/uap/windows10";
 
-			var visualElemment = xdocument.Descendants("VisualElements").FirstOrDefault();
+			var visualElemment = xdocument.Descendants(XName.Get("VisualElements", xmlNamespace)).FirstOrDefault();
 			if (visualElemment != null)
 			{
-				visualElemment.Attribute("Square150x150Logo").Value = @"Assets\Square150x150Logo.png";
-				visualElemment.Attribute("Square44x44Logo").Value = @"Assets\Square44x44Logo.png";
+				visualElemment.AddAttribute("Square150x150Logo", @"Assets\Square150x150Logo.png");
+				visualElemment.AddAttribute("Square44x44Logo", @"Assets\Square44x44Logo.png");
 			}
 
-			var defaultTitle = xdocument.Descendants("DefaultTile").FirstOrDefault();
+			var defaultTitle = xdocument.Descendants(XName.Get("DefaultTile", xmlNamespace)).FirstOrDefault();
 			if (defaultTitle != null)
 			{
-				defaultTitle.Attribute("Wide310x150Logo").Value = @"Assets\Wide310x150Logo.png";
-				defaultTitle.Attribute("Wide310x310Logo").Value = @"Assets\Wide310x310Logo.png";
-				defaultTitle.Attribute("Square71x71Logo").Value = @"Assets\Square71x71Logo.scaled-400.png";
+				defaultTitle.AddAttribute("Wide310x150Logo", @"Assets\Wide310x150Logo.png");
+				defaultTitle.AddAttribute("Square310x310Logo", @"Assets\Square310x310Logo.png");
+				defaultTitle.AddAttribute("Square71x71Logo", @"Assets\Square71x71Logo.png");
 			}
 
 			xdocument.Save(path);
@@ -223,7 +224,7 @@ namespace UWPTileGenerator
 			var originalImage = Image.FromFile(path);
 			var size = this.tileSizes[sizeKey];
 
-			var resizedImage = ResizeImage(originalImage, size, false);
+			var resizedImage = ResizeImage(originalImage, size);
 
 			var directory = Path.GetDirectoryName(path);
 			var fileName = Path.GetFileNameWithoutExtension(path);
@@ -255,12 +256,15 @@ namespace UWPTileGenerator
 				newHeight = size.Height;
 			}
 
-			var newImage = new Bitmap(newWidth, newHeight);
+			var newImage = new Bitmap(size.Width, size.Height);
+
+			var xPosition = (size.Width - newWidth) / 2;
+			var yPosition = (size.Height - newHeight) / 2;
 
 			using (Graphics graphicsHandle = Graphics.FromImage(newImage))
 			{
 				graphicsHandle.InterpolationMode = InterpolationMode.HighQualityBicubic;
-				graphicsHandle.DrawImage(image, 0, 0, newWidth, newHeight);
+				graphicsHandle.DrawImage(image, xPosition, yPosition, newWidth, newHeight);
 			}
 
 			return newImage;
