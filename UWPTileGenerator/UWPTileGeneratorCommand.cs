@@ -223,8 +223,31 @@ namespace UWPTileGenerator
 		{
 			var originalImage = Image.FromFile(path);
 			var size = this.tileSizes[sizeKey];
+			double xMarginSize = 1;
+			double yMarginSize = 1;
 
-			var resizedImage = ResizeImage(originalImage, size);
+			if (sizeKey.StartsWith("Square71x71Logo"))
+			{
+				xMarginSize = 0.5;
+				yMarginSize = 0.5;
+			}
+			else if (sizeKey.StartsWith("Square150x150Logo"))
+			{
+				xMarginSize = 0.33;
+				yMarginSize = 0.33;
+			}
+			else if (sizeKey.StartsWith("Wide310x150Logo"))
+			{
+				xMarginSize = 0.33;
+				yMarginSize = 0.33;
+			}
+			else if (sizeKey.StartsWith("Square310x310Logo"))
+			{
+				xMarginSize = 0.33;
+				yMarginSize = 0.33;
+			}
+
+			var resizedImage = ResizeImage(originalImage, size, xMargin: xMarginSize, yMargin:yMarginSize);
 
 			var directory = Path.GetDirectoryName(path);
 			var fileName = Path.GetFileNameWithoutExtension(path);
@@ -236,7 +259,7 @@ namespace UWPTileGenerator
 			return newImagePath;
 		}
 
-		public static Image ResizeImage(Image image, Size size, bool preserveAspectRatio = true)
+		public static Image ResizeImage(Image image, Size size, double xMargin = 1, double yMargin = 1, bool preserveAspectRatio = true)
 		{
 			int newWidth;
 			int newHeight;
@@ -247,8 +270,9 @@ namespace UWPTileGenerator
 				float percentWidth = (float)size.Width / (float)originalWidth;
 				float percentHeight = (float)size.Height / (float)originalHeight;
 				float percent = percentHeight < percentWidth ? percentHeight : percentWidth;
-				newWidth = (int)(originalWidth * percent);
-				newHeight = (int)(originalHeight * percent);
+
+				newWidth = (int)((originalWidth * percent) * xMargin);
+				newHeight = (int)((originalHeight * percent) * yMargin);
 			}
 			else
 			{
