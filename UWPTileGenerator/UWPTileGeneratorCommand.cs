@@ -16,6 +16,7 @@ using System.Xml.Linq;
 using System.IO;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Collections.Generic;
 
 namespace UWPTileGenerator
 {
@@ -24,6 +25,8 @@ namespace UWPTileGenerator
 	/// </summary>
 	internal sealed class UWPTileGeneratorCommand
 	{
+		private Dictionary<string, Size> tileSizes = new Dictionary<string, Size>();
+
 		/// <summary>
 		/// The output window for the VS Window
 		/// </summary>
@@ -66,7 +69,46 @@ namespace UWPTileGenerator
 				commandService.AddCommand(menuItem);
 			}
 
+			this.PopulateTileSizes();
+
 			outputWindow = this.ServiceProvider.GetService(typeof(SVsGeneralOutputWindowPane)) as IVsOutputWindowPane;
+		}
+
+		private void PopulateTileSizes()
+		{
+			this.tileSizes.Clear();
+
+			// Small
+			this.tileSizes.Add("Square71x71Logo.scale-100.png", new Size(71, 71));
+			this.tileSizes.Add("Square71x71Logo.scale-200.png", new Size(142, 142));
+			this.tileSizes.Add("Square71x71Logo.scale-400.png", new Size(284, 284));
+
+			// Medium
+			this.tileSizes.Add("Square150x150Logo.scale-100.png", new Size(150, 150));
+			this.tileSizes.Add("Square150x150Logo.scale-200.png", new Size(300, 300));
+			this.tileSizes.Add("Square150x150Logo.scale-400.png", new Size(600, 600));
+
+			// Wide							 
+			this.tileSizes.Add("Square310x150Logo.scale-100.png", new Size(310, 150));
+			this.tileSizes.Add("Square310x150Logo.scale-200.png", new Size(620, 300));
+			this.tileSizes.Add("Square310x150Logo.scale-400.png", new Size(1240, 600));
+
+			// Large						 
+			this.tileSizes.Add("Square310x310Logo.scale-100.png", new Size(310, 310));
+			this.tileSizes.Add("Square310x310Logo.scale-200.png", new Size(620, 620));
+			this.tileSizes.Add("Square310x310Logo.scale-400.png", new Size(1240, 1240));
+
+			// App list
+			this.tileSizes.Add("Square44x44Logo.scale-100.png", new Size(44, 44));
+			this.tileSizes.Add("Square44x44Logo.scale-200.png", new Size(88, 88));
+			this.tileSizes.Add("Square44x44Logo.scale-400.png", new Size(176, 176));
+
+			// Target size list assets with plate
+			this.tileSizes.Add("Square44x44Logo.targetsize-16.png", new Size(16, 16));
+			this.tileSizes.Add("Square44x44Logo.targetsize-24.png", new Size(24, 24));
+			this.tileSizes.Add("Square44x44Logo.targetsize-32.png", new Size(32, 32));
+			this.tileSizes.Add("Square44x44Logo.targetsize-48.png", new Size(48, 48));
+			this.tileSizes.Add("Square44x44Logo.targetsize-256.png", new Size(256, 256));
 		}
 
 		/// <summary>
@@ -118,7 +160,19 @@ namespace UWPTileGenerator
 					var projectItem = selectedItem.Object as ProjectItem;
 					var path = projectItem.Properties.Item("FullPath").Value.ToString();
 					outputWindow.OutputString($"The selected file is located at {path} \n");
-					this.GenerateTiles(path);
+					var project = projectItem.ContainingProject;
+					var selectedFileName = Path.GetFileName(path);
+
+					this.tileSizes.Keys.AsParallel().ForAll((i) =>
+					{
+						if (selectedFileName != i)
+						{
+							var newImagePath = this.GenerateTiles(path, i);
+							project.ProjectItems.AddFromFile(newImagePath);
+						}
+					});
+
+					project.Save();
 				}
 			}
 
@@ -134,6 +188,7 @@ namespace UWPTileGenerator
 					{
 						var projectItem = uiHierarchy.Object as ProjectItem;
 						var path = projectItem.Properties.Item("FullPath").Value.ToString();
+						projectItem = null;
 						outputWindow.OutputString($"The package manifest is located at {path} \n");
 						this.ManipulatePackageManifest(path);
 					}
@@ -143,19 +198,41 @@ namespace UWPTileGenerator
 
 		private void ManipulatePackageManifest(string path)
 		{
-			var xdocument = XDocument.Load(File.OpenRead(path));
-			//xdocument.Save(path, SaveOptions.None);
+			var xdocument = XDocument.Parse(File.ReadAllText(path));
+
+			var visualElemment = xdocument.Descendants("VisualElements").FirstOrDefault();
+			if (visualElemment != null)
+			{
+				visualElemment.Attribute("Square150x150Logo").Value = @"Assets\Square150x150Logo.png";
+				visualElemment.Attribute("Square44x44Logo").Value = @"Assets\Square44x44Logo.png";
+			}
+
+			var defaultTitle = xdocument.Descendants("DefaultTile").FirstOrDefault();
+			if (defaultTitle != null)
+			{
+				defaultTitle.Attribute("Wide310x150Logo").Value = @"Assets\Wide310x150Logo.png";
+				defaultTitle.Attribute("Wide310x310Logo").Value = @"Assets\Wide310x310Logo.png";
+				defaultTitle.Attribute("Square71x71Logo").Value = @"Assets\Square71x71Logo.scaled-400.png";
+			}
+
+			xdocument.Save(path);
 		}
 
-		private void GenerateTiles(string path)
+		private string GenerateTiles(string path, string sizeKey)
 		{
 			var originalImage = Image.FromFile(path);
-			var resizedImage = ResizeImage(originalImage, new Size(500, 500), true);
+			var size = this.tileSizes[sizeKey];
 
-			var director = Path.GetDirectoryName(path);
+			var resizedImage = ResizeImage(originalImage, size, false);
+
+			var directory = Path.GetDirectoryName(path);
 			var fileName = Path.GetFileNameWithoutExtension(path);
 
-			resizedImage.Save(Path.Combine(director, fileName + "-scaled.png"));
+			var newImagePath = Path.Combine(directory, sizeKey);
+
+			resizedImage.Save(newImagePath);
+
+			return newImagePath;
 		}
 
 		public static Image ResizeImage(Image image, Size size, bool preserveAspectRatio = true)
