@@ -109,6 +109,18 @@ namespace UWPTileGenerator
 			this.tileSizes.Add("Square44x44Logo.targetsize-32.png", new Size(32, 32));
 			this.tileSizes.Add("Square44x44Logo.targetsize-48.png", new Size(48, 48));
 			this.tileSizes.Add("Square44x44Logo.targetsize-256.png", new Size(256, 256));
+
+			this.tileSizes.Add("Square44x44Logo.targetsize-16_altform-unplated.png", new Size(16, 16));
+			this.tileSizes.Add("Square44x44Logo.targetsize-24_altform-unplated.png", new Size(24, 24));
+			this.tileSizes.Add("Square44x44Logo.targetsize-32_altform-unplated.png", new Size(32, 32));
+			this.tileSizes.Add("Square44x44Logo.targetsize-48_altform-unplated.png", new Size(48, 48));
+			this.tileSizes.Add("Square44x44Logo.targetsize-256_altform-unplated.png", new Size(256, 256));
+
+			this.tileSizes.Add("NewStoreLogo.scale-100.png", new Size(50, 50));
+			this.tileSizes.Add("NewStoreLogo.scale-125.png", new Size(63, 63));
+			this.tileSizes.Add("NewStoreLogo.scale-150.png", new Size(75, 75));
+			this.tileSizes.Add("NewStoreLogo.scale-200.png", new Size(100, 100));
+			this.tileSizes.Add("NewStoreLogo.scale-400.png", new Size(200, 200));
 		}
 
 		/// <summary>
@@ -200,6 +212,10 @@ namespace UWPTileGenerator
 		{
 			var xdocument = XDocument.Parse(File.ReadAllText(path));
 			var xmlNamespace = "http://schemas.microsoft.com/appx/manifest/uap/windows10";
+			var defaultNamespace = "http://schemas.microsoft.com/appx/manifest/foundation/windows10";
+
+			var logo = xdocument.Descendants(XName.Get("Logo", defaultNamespace)).First();
+			logo.Value = @"Assets\NewStoreLogo.png";
 
 			var visualElemment = xdocument.Descendants(XName.Get("VisualElements", xmlNamespace)).FirstOrDefault();
 			if (visualElemment != null)
