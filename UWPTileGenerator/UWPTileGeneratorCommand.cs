@@ -74,55 +74,6 @@ namespace UWPTileGenerator
 			outputWindow = this.ServiceProvider.GetService(typeof(SVsGeneralOutputWindowPane)) as IVsOutputWindowPane;
 		}
 
-		private void PopulateTileSizes()
-		{
-			this.tileSizes.Clear();
-
-			// Small
-			this.tileSizes.Add("Square71x71Logo.scale-100.png", new Size(71, 71));
-			this.tileSizes.Add("Square71x71Logo.scale-200.png", new Size(142, 142));
-			this.tileSizes.Add("Square71x71Logo.scale-400.png", new Size(284, 284));
-
-			// Medium
-			this.tileSizes.Add("Square150x150Logo.scale-100.png", new Size(150, 150));
-			this.tileSizes.Add("Square150x150Logo.scale-200.png", new Size(300, 300));
-			this.tileSizes.Add("Square150x150Logo.scale-400.png", new Size(600, 600));
-
-			// Wide							 
-			this.tileSizes.Add("Wide310x150Logo.scale-100.png", new Size(310, 150));
-			this.tileSizes.Add("Wide310x150Logo.scale-200.png", new Size(620, 300));
-			this.tileSizes.Add("Wide310x150Logo.scale-400.png", new Size(1240, 600));
-
-			// Large						 
-			this.tileSizes.Add("Square310x310Logo.scale-100.png", new Size(310, 310));
-			this.tileSizes.Add("Square310x310Logo.scale-200.png", new Size(620, 620));
-			this.tileSizes.Add("Square310x310Logo.scale-400.png", new Size(1240, 1240));
-
-			// App list
-			this.tileSizes.Add("Square44x44Logo.scale-100.png", new Size(44, 44));
-			this.tileSizes.Add("Square44x44Logo.scale-200.png", new Size(88, 88));
-			this.tileSizes.Add("Square44x44Logo.scale-400.png", new Size(176, 176));
-
-			// Target size list assets with plate
-			this.tileSizes.Add("Square44x44Logo.targetsize-16.png", new Size(16, 16));
-			this.tileSizes.Add("Square44x44Logo.targetsize-24.png", new Size(24, 24));
-			this.tileSizes.Add("Square44x44Logo.targetsize-32.png", new Size(32, 32));
-			this.tileSizes.Add("Square44x44Logo.targetsize-48.png", new Size(48, 48));
-			this.tileSizes.Add("Square44x44Logo.targetsize-256.png", new Size(256, 256));
-
-			this.tileSizes.Add("Square44x44Logo.targetsize-16_altform-unplated.png", new Size(16, 16));
-			this.tileSizes.Add("Square44x44Logo.targetsize-24_altform-unplated.png", new Size(24, 24));
-			this.tileSizes.Add("Square44x44Logo.targetsize-32_altform-unplated.png", new Size(32, 32));
-			this.tileSizes.Add("Square44x44Logo.targetsize-48_altform-unplated.png", new Size(48, 48));
-			this.tileSizes.Add("Square44x44Logo.targetsize-256_altform-unplated.png", new Size(256, 256));
-
-			this.tileSizes.Add("NewStoreLogo.scale-100.png", new Size(50, 50));
-			this.tileSizes.Add("NewStoreLogo.scale-125.png", new Size(63, 63));
-			this.tileSizes.Add("NewStoreLogo.scale-150.png", new Size(75, 75));
-			this.tileSizes.Add("NewStoreLogo.scale-200.png", new Size(100, 100));
-			this.tileSizes.Add("NewStoreLogo.scale-400.png", new Size(200, 200));
-		}
-
 		/// <summary>
 		/// Gets the instance of the command.
 		/// </summary>
@@ -206,6 +157,55 @@ namespace UWPTileGenerator
 					}
 				}
 			}
+		}
+
+		private void PopulateTileSizes()
+		{
+			this.tileSizes.Clear();
+
+			// Small
+			this.tileSizes.Add("Square71x71Logo.scale-100.png", new Size(71, 71));
+			this.tileSizes.Add("Square71x71Logo.scale-200.png", new Size(142, 142));
+			this.tileSizes.Add("Square71x71Logo.scale-400.png", new Size(284, 284));
+
+			// Medium
+			this.tileSizes.Add("Square150x150Logo.scale-100.png", new Size(150, 150));
+			this.tileSizes.Add("Square150x150Logo.scale-200.png", new Size(300, 300));
+			this.tileSizes.Add("Square150x150Logo.scale-400.png", new Size(600, 600));
+
+			// Wide							 
+			this.tileSizes.Add("Wide310x150Logo.scale-100.png", new Size(310, 150));
+			this.tileSizes.Add("Wide310x150Logo.scale-200.png", new Size(620, 300));
+			this.tileSizes.Add("Wide310x150Logo.scale-400.png", new Size(1240, 600));
+
+			// Large						 
+			this.tileSizes.Add("Square310x310Logo.scale-100.png", new Size(310, 310));
+			this.tileSizes.Add("Square310x310Logo.scale-200.png", new Size(620, 620));
+			this.tileSizes.Add("Square310x310Logo.scale-400.png", new Size(1240, 1240));
+
+			// App list
+			this.tileSizes.Add("Square44x44Logo.scale-100.png", new Size(44, 44));
+			this.tileSizes.Add("Square44x44Logo.scale-200.png", new Size(88, 88));
+			this.tileSizes.Add("Square44x44Logo.scale-400.png", new Size(176, 176));
+
+			// Target size list assets with plate
+			this.tileSizes.Add("Square44x44Logo.targetsize-16.png", new Size(16, 16));
+			this.tileSizes.Add("Square44x44Logo.targetsize-24.png", new Size(24, 24));
+			this.tileSizes.Add("Square44x44Logo.targetsize-32.png", new Size(32, 32));
+			this.tileSizes.Add("Square44x44Logo.targetsize-48.png", new Size(48, 48));
+			this.tileSizes.Add("Square44x44Logo.targetsize-256.png", new Size(256, 256));
+
+			this.tileSizes.Add("Square44x44Logo.targetsize-16_altform-unplated.png", new Size(16, 16));
+			this.tileSizes.Add("Square44x44Logo.targetsize-24_altform-unplated.png", new Size(24, 24));
+			this.tileSizes.Add("Square44x44Logo.targetsize-32_altform-unplated.png", new Size(32, 32));
+			this.tileSizes.Add("Square44x44Logo.targetsize-48_altform-unplated.png", new Size(48, 48));
+			this.tileSizes.Add("Square44x44Logo.targetsize-256_altform-unplated.png", new Size(256, 256));
+
+			this.tileSizes.Add("NewStoreLogo.scale-100.png", new Size(50, 50));
+			this.tileSizes.Add("NewStoreLogo.scale-125.png", new Size(63, 63));
+			this.tileSizes.Add("NewStoreLogo.scale-150.png", new Size(75, 75));
+			this.tileSizes.Add("NewStoreLogo.scale-200.png", new Size(100, 100));
+			this.tileSizes.Add("NewStoreLogo.scale-400.png", new Size(200, 200));
 		}
 
 		private void ManipulatePackageManifest(string path)
