@@ -126,6 +126,12 @@ namespace UWPTileGenerator
 					var project = projectItem.ContainingProject;
 					var selectedFileName = Path.GetFileName(path);
 
+					if (Path.GetExtension(path) != ".png")
+					{
+						VsShellUtilities.ShowMessageBox(this.ServiceProvider, "You need to select a valid png", "", OLEMSGICON.OLEMSGICON_CRITICAL, OLEMSGBUTTON.OLEMSGBUTTON_OK, OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
+						return;
+					}
+
 					this.tileSizes.Keys.AsParallel().ForAll((i) =>
 					{
 						if (selectedFileName != i)
@@ -263,7 +269,7 @@ namespace UWPTileGenerator
 				yMarginSize = 0.33;
 			}
 
-			var resizedImage = ResizeImage(originalImage, size, xMargin: xMarginSize, yMargin:yMarginSize);
+			var resizedImage = ResizeImage((Bitmap)originalImage, size, xMargin: xMarginSize, yMargin: yMarginSize);
 
 			var directory = Path.GetDirectoryName(path);
 			var fileName = Path.GetFileNameWithoutExtension(path);
@@ -275,7 +281,7 @@ namespace UWPTileGenerator
 			return newImagePath;
 		}
 
-		public static Image ResizeImage(Image image, Size size, double xMargin = 1, double yMargin = 1, bool preserveAspectRatio = true)
+		public static Image ResizeImage(Bitmap image, Size size, double xMargin = 1, double yMargin = 1, bool preserveAspectRatio = true)
 		{
 			int newWidth;
 			int newHeight;
@@ -301,9 +307,17 @@ namespace UWPTileGenerator
 			var xPosition = (size.Width - newWidth) / 2;
 			var yPosition = (size.Height - newHeight) / 2;
 
+			var firstPixel = image.GetPixel(0, 0);
+
+			var brush = new SolidBrush(firstPixel);
+
 			using (Graphics graphicsHandle = Graphics.FromImage(newImage))
 			{
 				graphicsHandle.InterpolationMode = InterpolationMode.HighQualityBicubic;
+				graphicsHandle.FillRectangle(brush, new Rectangle(0, 0, xPosition, size.Height));
+				graphicsHandle.FillRectangle(brush, new Rectangle(newWidth + xPosition, 0, size.Width - (newWidth + xPosition), size.Height));
+				graphicsHandle.FillRectangle(brush, new Rectangle(0, 0, size.Width, yPosition));
+				graphicsHandle.FillRectangle(brush, new Rectangle(0, yPosition + newHeight, size.Width, yPosition));
 				graphicsHandle.DrawImage(image, xPosition, yPosition, newWidth, newHeight);
 			}
 
