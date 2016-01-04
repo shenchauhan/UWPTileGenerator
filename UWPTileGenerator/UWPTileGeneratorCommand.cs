@@ -132,14 +132,21 @@ namespace UWPTileGenerator
 						return;
 					}
 
+					List<string> imagePaths = new List<string>();
+
 					this.tileSizes.Keys.AsParallel().ForAll((i) =>
 					{
 						if (selectedFileName != i)
 						{
 							var newImagePath = this.GenerateTiles(path, i);
-							project.ProjectItems.AddFromFile(newImagePath);
+							imagePaths.Add(newImagePath);
 						}
 					});
+
+					foreach (var item in imagePaths)
+					{
+						project.ProjectItems.AddFromFile(item);
+					}
 
 					project.Save();
 				}
@@ -314,10 +321,10 @@ namespace UWPTileGenerator
 			using (Graphics graphicsHandle = Graphics.FromImage(newImage))
 			{
 				graphicsHandle.InterpolationMode = InterpolationMode.HighQualityBicubic;
-				graphicsHandle.FillRectangle(brush, new Rectangle(0, 0, xPosition, size.Height));
-				graphicsHandle.FillRectangle(brush, new Rectangle(newWidth + xPosition, 0, size.Width - (newWidth + xPosition), size.Height));
-				graphicsHandle.FillRectangle(brush, new Rectangle(0, 0, size.Width, yPosition));
-				graphicsHandle.FillRectangle(brush, new Rectangle(0, yPosition + newHeight, size.Width, yPosition));
+				graphicsHandle.FillRectangle(brush, new Rectangle(0, 0, xPosition + 10, size.Height + 10));
+				graphicsHandle.FillRectangle(brush, new Rectangle(newWidth + xPosition - 10, 0, size.Width - (newWidth + xPosition) + 10, size.Height + 10));
+				graphicsHandle.FillRectangle(brush, new Rectangle(0, 0, size.Width + 10, yPosition + 10));
+				graphicsHandle.FillRectangle(brush, new Rectangle(0, yPosition + newHeight - 10, size.Width + 10, yPosition + 10));
 				graphicsHandle.DrawImage(image, xPosition, yPosition, newWidth, newHeight);
 			}
 
