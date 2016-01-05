@@ -17,6 +17,7 @@ using System.IO;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Collections.Generic;
+using System.Windows.Forms;
 
 namespace UWPTileGenerator
 {
@@ -134,6 +135,8 @@ namespace UWPTileGenerator
 
 					List<string> imagePaths = new List<string>();
 
+					Cursor.Current = Cursors.WaitCursor;
+
 					this.tileSizes.Keys.AsParallel().ForAll((i) =>
 					{
 						if (selectedFileName != i)
@@ -149,6 +152,8 @@ namespace UWPTileGenerator
 					}
 
 					project.Save();
+
+					Cursor.Current = Cursors.Default;
 				}
 			}
 
