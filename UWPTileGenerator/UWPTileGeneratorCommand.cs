@@ -124,6 +124,7 @@ namespace UWPTileGenerator
 				{
 					var projectItem = selectedItem.Object as ProjectItem;
 					var path = projectItem.Properties.Item("FullPath").Value.ToString();
+
 					directory = Path.GetDirectoryName(path);
 					outputWindow.OutputString($"The selected file is located at {path} \n");
 					var project = projectItem.ContainingProject;
@@ -132,6 +133,13 @@ namespace UWPTileGenerator
 					if (Path.GetExtension(path) != ".png")
 					{
 						VsShellUtilities.ShowMessageBox(this.ServiceProvider, "You need to select a valid png", "", OLEMSGICON.OLEMSGICON_CRITICAL, OLEMSGBUTTON.OLEMSGBUTTON_OK, OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
+						return;
+					}
+
+					var selectedImage = Image.FromFile(path);
+					if (Math.Abs(selectedImage.Width - selectedImage.Height) > 5)
+					{
+						VsShellUtilities.ShowMessageBox(this.ServiceProvider, "The selected item must be square and ideally with no margins", "", OLEMSGICON.OLEMSGICON_CRITICAL, OLEMSGBUTTON.OLEMSGBUTTON_OK, OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
 						return;
 					}
 
