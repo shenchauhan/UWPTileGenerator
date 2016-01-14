@@ -116,6 +116,7 @@ namespace UWPTileGenerator
 			var dte = (DTE2)this.ServiceProvider.GetService(typeof(DTE));
 			var hierarchy = dte.ToolWindows.SolutionExplorer;
 			var selectedItems = (Array)hierarchy.SelectedItems;
+			string directory = string.Empty;
 
 			if (selectedItems != null)
 			{
@@ -123,6 +124,7 @@ namespace UWPTileGenerator
 				{
 					var projectItem = selectedItem.Object as ProjectItem;
 					var path = projectItem.Properties.Item("FullPath").Value.ToString();
+					directory = Path.GetDirectoryName(path);
 					outputWindow.OutputString($"The selected file is located at {path} \n");
 					var project = projectItem.ContainingProject;
 					var selectedFileName = Path.GetFileName(path);
@@ -165,13 +167,13 @@ namespace UWPTileGenerator
 
 				foreach (UIHierarchyItem uiHierarchy in uiHierarchyItems)
 				{
-					if (uiHierarchy.Name.Equals("Package.appxmanifest"))
+					if (uiHierarchy.Name.ToLower().Equals("package.appxmanifest"))
 					{
 						var projectItem = uiHierarchy.Object as ProjectItem;
 						var path = projectItem.Properties.Item("FullPath").Value.ToString();
 						projectItem = null;
 						outputWindow.OutputString($"The package manifest is located at {path} \n");
-						this.ManipulatePackageManifest(path);
+						this.ManipulatePackageManifest(path, directory.Replace(Path.GetDirectoryName(path) + "\\", ""));
 					}
 				}
 			}
@@ -226,11 +228,12 @@ namespace UWPTileGenerator
 			this.tileSizes.Add("NewStoreLogo.scale-400.png", new Size(200, 200));
 		}
 
-		private void ManipulatePackageManifest(string path)
+		private void ManipulatePackageManifest(string path, string directory)
 		{
 			var xdocument = XDocument.Parse(File.ReadAllText(path));
 			var xmlNamespace = "http://schemas.microsoft.com/appx/manifest/uap/windows10";
 			var defaultNamespace = "http://schemas.microsoft.com/appx/manifest/foundation/windows10";
+
 
 			var logo = xdocument.Descendants(XName.Get("Logo", defaultNamespace)).First();
 			logo.Value = @"Assets\NewStoreLogo.png";
@@ -238,17 +241,20 @@ namespace UWPTileGenerator
 			var visualElemment = xdocument.Descendants(XName.Get("VisualElements", xmlNamespace)).FirstOrDefault();
 			if (visualElemment != null)
 			{
-				visualElemment.AddAttribute("Square150x150Logo", @"Assets\Square150x150Logo.png");
-				visualElemment.AddAttribute("Square44x44Logo", @"Assets\Square44x44Logo.png");
+				visualElemment.AddAttribute("Square150x150Logo", $@"{directory}\Square150x150Logo.png");
+				visualElemment.AddAttribute("Square44x44Logo", $@"{directory}\Square44x44Logo.png");
 			}
 
 			var defaultTitle = xdocument.Descendants(XName.Get("DefaultTile", xmlNamespace)).FirstOrDefault();
-			if (defaultTitle != null)
+			if (defaultTitle == null)
 			{
-				defaultTitle.AddAttribute("Wide310x150Logo", @"Assets\Wide310x150Logo.png");
-				defaultTitle.AddAttribute("Square310x310Logo", @"Assets\Square310x310Logo.png");
-				defaultTitle.AddAttribute("Square71x71Logo", @"Assets\Square71x71Logo.png");
+				visualElemment.Add(new XElement(XName.Get("DefaultTile", xmlNamespace)));
+				defaultTitle = xdocument.Descendants(XName.Get("DefaultTile", xmlNamespace)).FirstOrDefault();
 			}
+
+			defaultTitle.AddAttribute("Wide310x150Logo", $@"{directory}\Wide310x150Logo.png");
+			defaultTitle.AddAttribute("Square310x310Logo", $@"{directory}\Square310x310Logo.png");
+			defaultTitle.AddAttribute("Square71x71Logo", $@"{directory}\Square71x71Logo.png");
 
 			xdocument.Save(path);
 		}
