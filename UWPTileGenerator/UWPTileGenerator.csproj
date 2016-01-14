@@ -65,7 +65,10 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="index.html" />
-    <Content Include="Resources\noun_44512.png" />
+    <Content Include="Resources\noun_44512.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
     <Content Include="Resources\UWPTileGeneratorCommand.png" />
     <Content Include="Resources\UWPTileGeneratorCommandPackage.ico" />
     <Content Include="stylesheet.css" />

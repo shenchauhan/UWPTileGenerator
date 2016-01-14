@@ -159,6 +159,7 @@ namespace UWPTileGenerator
 					foreach (var item in imagePaths)
 					{
 						project.ProjectItems.AddFromFile(item);
+						outputWindow.OutputString($"Added {item} to the project \n");
 					}
 
 					project.Save();
@@ -182,9 +183,12 @@ namespace UWPTileGenerator
 						projectItem = null;
 						outputWindow.OutputString($"The package manifest is located at {path} \n");
 						this.ManipulatePackageManifest(path, directory.Replace(Path.GetDirectoryName(path) + "\\", ""));
+						outputWindow.OutputString($"The package manifest has been updated \n");
 					}
 				}
 			}
+
+			outputWindow.OutputString($"Tile generation complete. \n");
 		}
 
 		private void PopulateTileSizes()
@@ -303,6 +307,7 @@ namespace UWPTileGenerator
 			var newImagePath = Path.Combine(directory, sizeKey);
 
 			resizedImage.Save(newImagePath);
+			outputWindow.OutputString($"Generated image: {newImagePath} \n");
 
 			return newImagePath;
 		}
