@@ -54,7 +54,7 @@
           If you do not want an image next to your command, remove the Icon node /> -->
       <Button guid="guidUWPTileGeneratorCommandPackageCmdSet" id="UWPTileGeneratorCommandId" priority="0x0100" type="Button">
         <Parent guid="guidUWPTileGeneratorCommandPackageCmdSet" id="MyMenuGroup" />
-        <Icon guid="guidImages" id="bmpPic1" />
+        <Icon guid="icons" id="image1" />
         <Strings>
           <ButtonText>Generate UWP Tiles</ButtonText>
         </Strings>
@@ -68,7 +68,8 @@
             bitmap strip containing the bitmaps and then there are the numeric ids of the elements used
             inside a button definition. An important aspect of this declaration is that the element id
             must be the actual index (1-based) of the bitmap inside the bitmap strip. -->
-      <Bitmap guid="guidImages" href="Resources\UWPTileGeneratorCommand.png" usedList="bmpPic1, bmpPic2, bmpPicSearch, bmpPicX, bmpPicArrows, bmpPicStrikethrough"/>
+      <!--<Bitmap guid="guidImages" href="Resources\UWPTileGeneratorCommand.png" usedList="bmpPic1, bmpPic2, bmpPicSearch, bmpPicX, bmpPicArrows, bmpPicStrikethrough"/>-->
+			<Bitmap guid="icons" href="Resources\noun_44512.png" usedList="image1" />
     </Bitmaps>
   </Commands>
 
@@ -81,6 +82,10 @@
       <IDSymbol name="MyMenuGroup" value="0x1020" />
       <IDSymbol name="UWPTileGeneratorCommandId" value="0x0100" />
     </GuidSymbol>
+
+		<GuidSymbol name="icons" value="{C552999B-27EE-4B3F-A10F-8098C9D8F848}">
+			<IDSymbol name="image1" value="1" />
+		</GuidSymbol>
 
     <GuidSymbol name="guidImages" value="{2b464e7d-ccda-45b6-b728-ecf6dc7becf2}" >
       <IDSymbol name="bmpPic1" value="1" />
