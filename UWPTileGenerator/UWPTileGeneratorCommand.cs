@@ -139,7 +139,7 @@ namespace UWPTileGenerator
 					var selectedImage = Image.FromFile(path);
 					if (Math.Abs(selectedImage.Width - selectedImage.Height) > 5)
 					{
-						VsShellUtilities.ShowMessageBox(this.ServiceProvider, "The selected item must be square and ideally with no margins", "", OLEMSGICON.OLEMSGICON_CRITICAL, OLEMSGBUTTON.OLEMSGBUTTON_OK, OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
+						VsShellUtilities.ShowMessageBox(this.ServiceProvider, "The selected item must be square and ideally with no padding", "", OLEMSGICON.OLEMSGICON_CRITICAL, OLEMSGBUTTON.OLEMSGBUTTON_OK, OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
 						return;
 					}
 
