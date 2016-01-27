@@ -273,7 +273,6 @@ namespace UWPTileGenerator
 
 		private string GenerateTiles(string path, string sizeKey)
 		{
-			var originalImage = Image.FromFile(path);
 			var size = this.tileSizes[sizeKey];
 			double xMarginSize = 1;
 			double yMarginSize = 1;
@@ -299,15 +298,19 @@ namespace UWPTileGenerator
 				yMarginSize = 0.33;
 			}
 
-			var resizedImage = ResizeImage((Bitmap)originalImage, size, xMargin: xMarginSize, yMargin: yMarginSize);
+			string newImagePath;
 
-			var directory = Path.GetDirectoryName(path);
-			var fileName = Path.GetFileNameWithoutExtension(path);
+			using (var originalImage = Image.FromFile(path))
+			{
+				var resizedImage = ResizeImage((Bitmap)originalImage, size, xMargin: xMarginSize, yMargin: yMarginSize);
+				var directory = Path.GetDirectoryName(path);
+				var fileName = Path.GetFileNameWithoutExtension(path);
 
-			var newImagePath = Path.Combine(directory, sizeKey);
+				newImagePath = Path.Combine(directory, sizeKey);
 
-			resizedImage.Save(newImagePath);
-			outputWindow.OutputString($"Generated image: {newImagePath} \n");
+				resizedImage.Save(newImagePath);
+				outputWindow.OutputString($"Generated image: {newImagePath} \n");
+			}
 
 			return newImagePath;
 		}
