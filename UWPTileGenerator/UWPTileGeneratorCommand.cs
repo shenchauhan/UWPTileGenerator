@@ -18,6 +18,8 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Collections.Generic;
 using System.Windows.Forms;
+using Svg;
+using Svg.Transforms;
 
 namespace UWPTileGenerator
 {
@@ -129,15 +131,29 @@ namespace UWPTileGenerator
 					outputWindow.OutputString($"The selected file is located at {path} \n");
 					var project = projectItem.ContainingProject;
 					var selectedFileName = Path.GetFileName(path);
+					var extension = Path.GetExtension(path);
 
-					if (Path.GetExtension(path) != ".png")
+					if (extension != ".png" && extension != ".svg")
 					{
-						VsShellUtilities.ShowMessageBox(this.ServiceProvider, "You need to select a valid png", "", OLEMSGICON.OLEMSGICON_CRITICAL, OLEMSGBUTTON.OLEMSGBUTTON_OK, OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
+						VsShellUtilities.ShowMessageBox(this.ServiceProvider, "You need to select a valid png or svg", "", OLEMSGICON.OLEMSGICON_CRITICAL, OLEMSGBUTTON.OLEMSGBUTTON_OK, OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
 						return;
 					}
 
-					var selectedImage = Image.FromFile(path);
-					if (Math.Abs(selectedImage.Width - selectedImage.Height) > 5)
+					bool isSquare = false;
+					if (extension == ".png")
+					{
+						using (var selectedImage = Image.FromFile(path))
+						{
+							isSquare = Math.Abs(selectedImage.Width - selectedImage.Height) > 5;
+						}
+					}
+					else if (extension == ".svg")
+					{
+						var selectedImage = SvgDocument.Open(path);
+						isSquare = Math.Abs(selectedImage.Width - selectedImage.Height) > 5;
+					}
+
+					if (isSquare)
 					{
 						VsShellUtilities.ShowMessageBox(this.ServiceProvider, "The selected item must be square and ideally with no padding", "", OLEMSGICON.OLEMSGICON_CRITICAL, OLEMSGBUTTON.OLEMSGBUTTON_OK, OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
 						return;
@@ -282,37 +298,63 @@ namespace UWPTileGenerator
 				xMarginSize = 0.5;
 				yMarginSize = 0.5;
 			}
-			else if (sizeKey.StartsWith("Square150x150Logo"))
-			{
-				xMarginSize = 0.33;
-				yMarginSize = 0.33;
-			}
-			else if (sizeKey.StartsWith("Wide310x150Logo"))
-			{
-				xMarginSize = 0.33;
-				yMarginSize = 0.33;
-			}
-			else if (sizeKey.StartsWith("Square310x310Logo"))
+			else if (sizeKey.StartsWith("Square150x150Logo") || sizeKey.StartsWith("Wide310x150Logo") || sizeKey.StartsWith("Square310x310Logo"))
 			{
 				xMarginSize = 0.33;
 				yMarginSize = 0.33;
 			}
 
-			string newImagePath;
+			var newImagePath = Path.Combine(Path.GetDirectoryName(path), sizeKey);
 
-			using (var originalImage = Image.FromFile(path))
+			var extension = Path.GetExtension(path);
+			if (extension == ".png")
 			{
-				var resizedImage = ResizeImage((Bitmap)originalImage, size, xMargin: xMarginSize, yMargin: yMarginSize);
-				var directory = Path.GetDirectoryName(path);
-				var fileName = Path.GetFileNameWithoutExtension(path);
-
-				newImagePath = Path.Combine(directory, sizeKey);
-
+				using (var originalImage = Image.FromFile(path))
+				{
+					var resizedImage = ResizeImage((Bitmap)originalImage, size, xMargin: xMarginSize, yMargin: yMarginSize);
+					resizedImage.Save(newImagePath);
+				}
+			}
+			else if (extension == ".svg")
+			{
+				var resizedImage = ResizeImage(SvgDocument.Open(path), size, xMargin: xMarginSize, yMargin: yMarginSize);
 				resizedImage.Save(newImagePath);
-				outputWindow.OutputString($"Generated image: {newImagePath} \n");
 			}
+
+			outputWindow.OutputString($"Generated image: {newImagePath} \n");
 
 			return newImagePath;
+		}
+
+		public static Image ResizeImage(SvgDocument image, Size size, double xMargin = 1, double yMargin = 1, bool preserveAspectRatio = true)
+		{
+			int newWidth;
+			int newHeight;
+
+			var originalWidth = image.Width.Value;
+			var originalHeight = image.Height.Value;
+
+			float percentWidth = (float)size.Width / (float)originalWidth;
+			float percentHeight = (float)size.Height / (float)originalHeight;
+			float percent = percentHeight < percentWidth ? percentHeight : percentWidth;
+
+			newWidth = (int)((originalWidth * percent) * xMargin);
+			newHeight = (int)((originalHeight * percent) * yMargin);
+
+			image.Transforms.Add(new SvgScale(newWidth / originalWidth, newHeight / originalHeight));
+
+			var xPosition = (size.Width - newWidth) / 2;
+			var yPosition = (size.Height - newHeight) / 2;
+
+			var newImage = new Bitmap(size.Width, size.Height);
+
+			using (Graphics graphicsHandle = Graphics.FromImage(newImage))
+			{
+				graphicsHandle.InterpolationMode = InterpolationMode.HighQualityBicubic;
+				graphicsHandle.DrawImage(image.Draw(newWidth + 10, newHeight + 10), xPosition, yPosition);
+			}
+
+			return newImage;
 		}
 
 		public static Image ResizeImage(Bitmap image, Size size, double xMargin = 1, double yMargin = 1, bool preserveAspectRatio = true)
@@ -323,6 +365,7 @@ namespace UWPTileGenerator
 			{
 				int originalWidth = image.Width;
 				int originalHeight = image.Height;
+
 				float percentWidth = (float)size.Width / (float)originalWidth;
 				float percentHeight = (float)size.Height / (float)originalHeight;
 				float percent = percentHeight < percentWidth ? percentHeight : percentWidth;
@@ -336,10 +379,10 @@ namespace UWPTileGenerator
 				newHeight = size.Height;
 			}
 
-			var newImage = new Bitmap(size.Width, size.Height);
-
 			var xPosition = (size.Width - newWidth) / 2;
 			var yPosition = (size.Height - newHeight) / 2;
+
+			var newImage = new Bitmap(size.Width, size.Height);
 
 			var firstPixel = image.GetPixel(0, 0);
 
