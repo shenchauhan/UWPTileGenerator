@@ -198,7 +198,11 @@ namespace UWPTileGenerator
 						var path = projectItem.Properties.Item("FullPath").Value.ToString();
 						projectItem = null;
 						outputWindow.OutputString($"The package manifest is located at {path} \n");
-						this.ManipulatePackageManifest(path, directory.Replace(Path.GetDirectoryName(path) + "\\", ""));
+
+						// this is needed in case the image is in the root of the project.
+						var imageDirectory = directory == Path.GetDirectoryName(path) ? string.Empty : string.Concat(directory.Replace(Path.GetDirectoryName(path) + "\\", ""), "\\");
+
+						this.ManipulatePackageManifest(path, imageDirectory);
 						outputWindow.OutputString($"The package manifest has been updated \n");
 					}
 				}
@@ -264,13 +268,13 @@ namespace UWPTileGenerator
 
 
 			var logo = xdocument.Descendants(XName.Get("Logo", defaultNamespace)).First();
-			logo.Value = @"Assets\NewStoreLogo.png";
+			logo.Value = $@"{directory}NewStoreLogo.png";
 
 			var visualElemment = xdocument.Descendants(XName.Get("VisualElements", xmlNamespace)).FirstOrDefault();
 			if (visualElemment != null)
 			{
-				visualElemment.AddAttribute("Square150x150Logo", $@"{directory}\Square150x150Logo.png");
-				visualElemment.AddAttribute("Square44x44Logo", $@"{directory}\Square44x44Logo.png");
+				visualElemment.AddAttribute("Square150x150Logo", $@"{directory}Square150x150Logo.png");
+				visualElemment.AddAttribute("Square44x44Logo", $@"{directory}Square44x44Logo.png");
 			}
 
 			var defaultTitle = xdocument.Descendants(XName.Get("DefaultTile", xmlNamespace)).FirstOrDefault();
@@ -280,9 +284,9 @@ namespace UWPTileGenerator
 				defaultTitle = xdocument.Descendants(XName.Get("DefaultTile", xmlNamespace)).FirstOrDefault();
 			}
 
-			defaultTitle.AddAttribute("Wide310x150Logo", $@"{directory}\Wide310x150Logo.png");
-			defaultTitle.AddAttribute("Square310x310Logo", $@"{directory}\Square310x310Logo.png");
-			defaultTitle.AddAttribute("Square71x71Logo", $@"{directory}\Square71x71Logo.png");
+			defaultTitle.AddAttribute("Wide310x150Logo", $@"{directory}Wide310x150Logo.png");
+			defaultTitle.AddAttribute("Square310x310Logo", $@"{directory}Square310x310Logo.png");
+			defaultTitle.AddAttribute("Square71x71Logo", $@"{directory}Square71x71Logo.png");
 
 			xdocument.Save(path);
 		}
@@ -311,14 +315,18 @@ namespace UWPTileGenerator
 			{
 				using (var originalImage = Image.FromFile(path))
 				{
-					var resizedImage = ResizeImage((Bitmap)originalImage, size, xMargin: xMarginSize, yMargin: yMarginSize);
-					resizedImage.Save(newImagePath);
+					using (var resizedImage = ResizeImage((Bitmap)originalImage, size, xMargin: xMarginSize, yMargin: yMarginSize))
+					{
+						resizedImage.Save(newImagePath);
+					}
 				}
 			}
 			else if (extension == ".svg")
 			{
-				var resizedImage = ResizeImage(SvgDocument.Open(path), size, xMargin: xMarginSize, yMargin: yMarginSize);
-				resizedImage.Save(newImagePath);
+				using (var resizedImage = ResizeImage(SvgDocument.Open(path), size, xMargin: xMarginSize, yMargin: yMarginSize))
+				{
+					resizedImage.Save(newImagePath);
+				}
 			}
 
 			outputWindow.OutputString($"Generated image: {newImagePath} \n");
@@ -351,7 +359,11 @@ namespace UWPTileGenerator
 			using (Graphics graphicsHandle = Graphics.FromImage(newImage))
 			{
 				graphicsHandle.InterpolationMode = InterpolationMode.HighQualityBicubic;
-				graphicsHandle.DrawImage(image.Draw(newWidth + 10, newHeight + 10), xPosition, yPosition);
+				using (var bitmap = image.Draw(newWidth + 10, newHeight + 10))
+				{
+					bitmap.MakeTransparent();
+					graphicsHandle.DrawImage(bitmap, xPosition, yPosition);
+				}
 			}
 
 			return newImage;
