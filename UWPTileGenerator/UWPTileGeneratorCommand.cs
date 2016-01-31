@@ -41,6 +41,7 @@ namespace UWPTileGenerator
 		/// Command ID.
 		/// </summary>
 		public const int UWPTileCommandId = 0x0100;
+
 		public const int UWPSplashCommandId = 0x0200;
 
 		/// <summary>
@@ -381,7 +382,6 @@ namespace UWPTileGenerator
 		{
 			var xdocument = XDocument.Parse(File.ReadAllText(path));
 			var xmlNamespace = "http://schemas.microsoft.com/appx/manifest/uap/windows10";
-			var defaultNamespace = "http://schemas.microsoft.com/appx/manifest/foundation/windows10";
 
 			var visualElemment = xdocument.Descendants(XName.Get("VisualElements", xmlNamespace)).FirstOrDefault();
 			if (visualElemment != null)
@@ -404,7 +404,6 @@ namespace UWPTileGenerator
 			var xdocument = XDocument.Parse(File.ReadAllText(path));
 			var xmlNamespace = "http://schemas.microsoft.com/appx/manifest/uap/windows10";
 			var defaultNamespace = "http://schemas.microsoft.com/appx/manifest/foundation/windows10";
-
 
 			var logo = xdocument.Descendants(XName.Get("Logo", defaultNamespace)).First();
 			logo.Value = $@"{directory}NewStoreLogo.png";
