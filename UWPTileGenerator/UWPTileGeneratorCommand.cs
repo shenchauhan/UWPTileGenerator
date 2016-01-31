@@ -30,6 +30,8 @@ namespace UWPTileGenerator
 	{
 		private Dictionary<string, Size> tileSizes = new Dictionary<string, Size>();
 
+		private Dictionary<string, Size> splashSizes = new Dictionary<string, Size>();
+
 		/// <summary>
 		/// The output window for the VS Window
 		/// </summary>
@@ -38,7 +40,8 @@ namespace UWPTileGenerator
 		/// <summary>
 		/// Command ID.
 		/// </summary>
-		public const int CommandId = 0x0100;
+		public const int UWPTileCommandId = 0x0100;
+		public const int UWPSplashCommandId = 0x0200;
 
 		/// <summary>
 		/// Command menu group (command set GUID).
@@ -67,12 +70,17 @@ namespace UWPTileGenerator
 			OleMenuCommandService commandService = this.ServiceProvider.GetService(typeof(IMenuCommandService)) as OleMenuCommandService;
 			if (commandService != null)
 			{
-				var menuCommandID = new CommandID(CommandSet, CommandId);
-				var menuItem = new MenuCommand(this.MenuItemCallback, menuCommandID);
-				commandService.AddCommand(menuItem);
+				var splashCommandId = new CommandID(CommandSet, UWPSplashCommandId);
+				var splashMenuItem = new MenuCommand(this.SplashTileCallback, splashCommandId);
+				commandService.AddCommand(splashMenuItem);
+
+				var tileCommandId = new CommandID(CommandSet, UWPTileCommandId);
+				var tileMenuItem = new MenuCommand(this.UWPTileCallback, tileCommandId);
+				commandService.AddCommand(tileMenuItem);
 			}
 
 			this.PopulateTileSizes();
+			this.PopulateSplashSizes();
 
 			outputWindow = this.ServiceProvider.GetService(typeof(SVsGeneralOutputWindowPane)) as IVsOutputWindowPane;
 		}
@@ -106,6 +114,104 @@ namespace UWPTileGenerator
 			Instance = new UWPTileGeneratorCommand(package);
 		}
 
+		private void SplashTileCallback(object sender, EventArgs e)
+		{
+			var dte = (DTE2)this.ServiceProvider.GetService(typeof(DTE));
+			var hierarchy = dte.ToolWindows.SolutionExplorer;
+			var selectedItems = (Array)hierarchy.SelectedItems;
+			string directory = string.Empty;
+
+			if (selectedItems != null)
+			{
+				foreach (UIHierarchyItem selectedItem in selectedItems)
+				{
+					var projectItem = selectedItem.Object as ProjectItem;
+					var path = projectItem.Properties.Item("FullPath").Value.ToString();
+
+					directory = Path.GetDirectoryName(path);
+					outputWindow.OutputString($"The selected file is located at {path} \n");
+					var project = projectItem.ContainingProject;
+					var selectedFileName = Path.GetFileName(path);
+					var extension = Path.GetExtension(path);
+
+					if (extension != ".png" && extension != ".svg")
+					{
+						VsShellUtilities.ShowMessageBox(this.ServiceProvider, "You need to select a valid png or svg", "", OLEMSGICON.OLEMSGICON_CRITICAL, OLEMSGBUTTON.OLEMSGBUTTON_OK, OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
+						return;
+					}
+
+					bool isSquare = false;
+					if (extension == ".png")
+					{
+						using (var selectedImage = Image.FromFile(path))
+						{
+							isSquare = Math.Abs(selectedImage.Width - selectedImage.Height) > 5;
+						}
+					}
+					else if (extension == ".svg")
+					{
+						var selectedImage = SvgDocument.Open(path);
+						isSquare = Math.Abs(selectedImage.Width - selectedImage.Height) > 5;
+					}
+
+					if (isSquare)
+					{
+						VsShellUtilities.ShowMessageBox(this.ServiceProvider, "The selected item must be square and ideally with no padding", "", OLEMSGICON.OLEMSGICON_CRITICAL, OLEMSGBUTTON.OLEMSGBUTTON_OK, OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
+						return;
+					}
+
+					List<string> imagePaths = new List<string>();
+
+					Cursor.Current = Cursors.WaitCursor;
+
+					this.splashSizes.Keys.AsParallel().ForAll((i) =>
+					{
+						if (selectedFileName != i)
+						{
+							var newImagePath = this.GenerateTiles(path, i);
+							imagePaths.Add(newImagePath);
+						}
+					});
+
+					foreach (var item in imagePaths)
+					{
+						project.ProjectItems.AddFromFile(item);
+						outputWindow.OutputString($"Added {item} to the project \n");
+					}
+
+					project.Save();
+
+					Cursor.Current = Cursors.Default;
+				}
+			}
+
+			var solutionRoot = hierarchy.UIHierarchyItems.Item(1);
+
+			for (int i = 1; i <= solutionRoot.UIHierarchyItems.Count; i++)
+			{
+				var uiHierarchyItems = solutionRoot.UIHierarchyItems.Item(i).UIHierarchyItems;
+
+				foreach (UIHierarchyItem uiHierarchy in uiHierarchyItems)
+				{
+					if (uiHierarchy.Name.ToLower().Equals("package.appxmanifest"))
+					{
+						var projectItem = uiHierarchy.Object as ProjectItem;
+						var path = projectItem.Properties.Item("FullPath").Value.ToString();
+						projectItem = null;
+						outputWindow.OutputString($"The package manifest is located at {path} \n");
+
+						// this is needed in case the image is in the root of the project.
+						var imageDirectory = directory == Path.GetDirectoryName(path) ? string.Empty : string.Concat(directory.Replace(Path.GetDirectoryName(path) + "\\", ""), "\\");
+
+						this.ManipulatePackageManifestForSplash(path, imageDirectory);
+						outputWindow.OutputString($"The package manifest has been updated \n");
+					}
+				}
+			}
+
+			outputWindow.OutputString($"Tile generation complete. \n");
+		}
+
 		/// <summary>
 		/// This function is the callback used to execute the command when the menu item is clicked.
 		/// See the constructor to see how the menu item is associated with this function using
@@ -113,7 +219,7 @@ namespace UWPTileGenerator
 		/// </summary>
 		/// <param name="sender">Event sender.</param>
 		/// <param name="e">Event args.</param>
-		private void MenuItemCallback(object sender, EventArgs e)
+		private void UWPTileCallback(object sender, EventArgs e)
 		{
 			var dte = (DTE2)this.ServiceProvider.GetService(typeof(DTE));
 			var hierarchy = dte.ToolWindows.SolutionExplorer;
@@ -202,7 +308,7 @@ namespace UWPTileGenerator
 						// this is needed in case the image is in the root of the project.
 						var imageDirectory = directory == Path.GetDirectoryName(path) ? string.Empty : string.Concat(directory.Replace(Path.GetDirectoryName(path) + "\\", ""), "\\");
 
-						this.ManipulatePackageManifest(path, imageDirectory);
+						this.ManipulatePackageManifestForTiles(path, imageDirectory);
 						outputWindow.OutputString($"The package manifest has been updated \n");
 					}
 				}
@@ -260,7 +366,40 @@ namespace UWPTileGenerator
 			this.tileSizes.Add("NewStoreLogo.scale-400.png", new Size(200, 200));
 		}
 
-		private void ManipulatePackageManifest(string path, string directory)
+		private void PopulateSplashSizes()
+		{
+			this.splashSizes.Clear();
+
+			this.splashSizes.Add("SplashScreen.scale-400.png", new Size(2480, 1200));
+			this.splashSizes.Add("SplashScreen.scale-200.png", new Size(1240, 600));
+			this.splashSizes.Add("SplashScreen.scale-150.png", new Size(930, 450));
+			this.splashSizes.Add("SplashScreen.scale-125.png", new Size(775, 375));
+			this.splashSizes.Add("SplashScreen.scale-100.png", new Size(620, 300));
+		}
+
+		private void ManipulatePackageManifestForSplash(string path, string directory)
+		{
+			var xdocument = XDocument.Parse(File.ReadAllText(path));
+			var xmlNamespace = "http://schemas.microsoft.com/appx/manifest/uap/windows10";
+			var defaultNamespace = "http://schemas.microsoft.com/appx/manifest/foundation/windows10";
+
+			var visualElemment = xdocument.Descendants(XName.Get("VisualElements", xmlNamespace)).FirstOrDefault();
+			if (visualElemment != null)
+			{
+
+				var splashScreen = xdocument.Descendants(XName.Get("SplashScreen", xmlNamespace)).FirstOrDefault();
+				if (splashScreen == null)
+				{
+					visualElemment.Add(new XElement(XName.Get("SplashScreen", xmlNamespace)));
+					splashScreen = xdocument.Descendants(XName.Get("SplashScreen", xmlNamespace)).FirstOrDefault();
+				}
+
+				splashScreen.AddAttribute("Image", $@"{directory}SplashScreen.png");
+				xdocument.Save(path);
+			}
+		}
+
+		private void ManipulatePackageManifestForTiles(string path, string directory)
 		{
 			var xdocument = XDocument.Parse(File.ReadAllText(path));
 			var xmlNamespace = "http://schemas.microsoft.com/appx/manifest/uap/windows10";
@@ -293,7 +432,7 @@ namespace UWPTileGenerator
 
 		private string GenerateTiles(string path, string sizeKey)
 		{
-			var size = this.tileSizes[sizeKey];
+			var size = sizeKey.StartsWith("Splash") ? this.splashSizes[sizeKey] : this.tileSizes[sizeKey];
 			double xMarginSize = 1;
 			double yMarginSize = 1;
 
@@ -303,6 +442,11 @@ namespace UWPTileGenerator
 				yMarginSize = 0.5;
 			}
 			else if (sizeKey.StartsWith("Square150x150Logo") || sizeKey.StartsWith("Wide310x150Logo") || sizeKey.StartsWith("Square310x310Logo"))
+			{
+				xMarginSize = 0.33;
+				yMarginSize = 0.33;
+			}
+			else if (sizeKey.StartsWith("SplashScreen"))
 			{
 				xMarginSize = 0.33;
 				yMarginSize = 0.33;
