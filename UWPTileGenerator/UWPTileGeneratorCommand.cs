@@ -242,7 +242,7 @@ namespace UWPTileGenerator
 
 					if (extension != ".png" && extension != ".svg")
 					{
-						VsShellUtilities.ShowMessageBox(this.ServiceProvider, "You need to select a valid png or svg", "", OLEMSGICON.OLEMSGICON_CRITICAL, OLEMSGBUTTON.OLEMSGBUTTON_OK, OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
+						VsShellUtilities.ShowMessageBox(this.ServiceProvider, "You need to select a valid png or svg", "Invalid file format", OLEMSGICON.OLEMSGICON_CRITICAL, OLEMSGBUTTON.OLEMSGBUTTON_OK, OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
 						return;
 					}
 
@@ -252,6 +252,14 @@ namespace UWPTileGenerator
 						using (var selectedImage = Image.FromFile(path))
 						{
 							isSquare = Math.Abs(selectedImage.Width - selectedImage.Height) > 5;
+
+							if (!isSquare)
+							{
+								if (selectedImage.Width < 400 || selectedImage.Height < 400)
+								{
+									VsShellUtilities.ShowMessageBox(this.ServiceProvider, "The image you have provided may not scale well due to it's inital size. For better results try a square image larger than 400x400 pixels", "Quality warning", OLEMSGICON.OLEMSGICON_WARNING, OLEMSGBUTTON.OLEMSGBUTTON_OK, OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
+								}
+							}
 						}
 					}
 					else if (extension == ".svg")
