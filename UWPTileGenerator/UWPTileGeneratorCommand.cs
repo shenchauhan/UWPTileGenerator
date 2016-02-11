@@ -324,26 +324,36 @@ namespace UWPTileGenerator
 
 			// Small
 			this.tileSizes.Add("Square71x71Logo.scale-100.png", new Size(71, 71));
+			this.tileSizes.Add("Square71x71Logo.scale-125.png", new Size(89, 89));
+			this.tileSizes.Add("Square71x71Logo.scale-150.png", new Size(107, 107));
 			this.tileSizes.Add("Square71x71Logo.scale-200.png", new Size(142, 142));
 			this.tileSizes.Add("Square71x71Logo.scale-400.png", new Size(284, 284));
 
 			// Medium
 			this.tileSizes.Add("Square150x150Logo.scale-100.png", new Size(150, 150));
+			this.tileSizes.Add("Square150x150Logo.scale-125.png", new Size(188, 188));
+			this.tileSizes.Add("Square150x150Logo.scale-150.png", new Size(225, 225));
 			this.tileSizes.Add("Square150x150Logo.scale-200.png", new Size(300, 300));
 			this.tileSizes.Add("Square150x150Logo.scale-400.png", new Size(600, 600));
 
 			// Wide							 
 			this.tileSizes.Add("Wide310x150Logo.scale-100.png", new Size(310, 150));
+			this.tileSizes.Add("Wide310x150Logo.scale-125.png", new Size(388, 188));
+			this.tileSizes.Add("Wide310x150Logo.scale-150.png", new Size(465, 225));
 			this.tileSizes.Add("Wide310x150Logo.scale-200.png", new Size(620, 300));
 			this.tileSizes.Add("Wide310x150Logo.scale-400.png", new Size(1240, 600));
 
 			// Large						 
 			this.tileSizes.Add("Square310x310Logo.scale-100.png", new Size(310, 310));
+			this.tileSizes.Add("Square310x310Logo.scale-125.png", new Size(388, 388));
+			this.tileSizes.Add("Square310x310Logo.scale-150.png", new Size(465, 465));
 			this.tileSizes.Add("Square310x310Logo.scale-200.png", new Size(620, 620));
 			this.tileSizes.Add("Square310x310Logo.scale-400.png", new Size(1240, 1240));
 
 			// App list
 			this.tileSizes.Add("Square44x44Logo.scale-100.png", new Size(44, 44));
+			this.tileSizes.Add("Square44x44Logo.scale-125.png", new Size(55, 55));
+			this.tileSizes.Add("Square44x44Logo.scale-150.png", new Size(66, 66));
 			this.tileSizes.Add("Square44x44Logo.scale-200.png", new Size(88, 88));
 			this.tileSizes.Add("Square44x44Logo.scale-400.png", new Size(176, 176));
 
