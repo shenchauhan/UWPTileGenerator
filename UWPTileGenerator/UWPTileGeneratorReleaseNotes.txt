@@ -1,0 +1,6 @@
+UWP Tile Generator V2.0
+======================================================
+- Supports SVG files
+- Supports Splash screen images
+- Generates more tile images than before
+- Warning on png files less than 400x400 pixels

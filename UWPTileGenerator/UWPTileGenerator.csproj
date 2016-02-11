@@ -75,7 +75,14 @@
     <Content Include="Resources\UWPTileGeneratorCommand.png" />
     <Content Include="Resources\UWPTileGeneratorCommandPackage.ico" />
     <Content Include="stylesheet.css" />
-    <Content Include="UWPTileGeneratorIcon.ico" />
+    <Content Include="UWPTileGeneratorIcon.ico">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
+    <Content Include="UWPTileGeneratorReleaseNotes.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
     <VSCTCompile Include="UWPTileGeneratorCommandPackage.vsct">
       <ResourceName>Menus.ctmenu</ResourceName>
     </VSCTCompile>
