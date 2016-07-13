@@ -80,7 +80,7 @@ namespace UWPTileGenerator
         /// <summary>
         /// Gets the service provider from the owner package.
         /// </summary>
-        private IServiceProvider ServiceProvider => this._package;
+        private IServiceProvider ServiceProvider => _package;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="UWPTileGeneratorCommand"/> class.
@@ -100,11 +100,11 @@ namespace UWPTileGenerator
             if (commandService != null)
             {
                 var splashCommandId = new CommandID(CommandSet, UwpSplashCommandId);
-                var splashMenuItem = new MenuCommand(SplashTileCallback, splashCommandId);
+                var splashMenuItem = new MenuCommand(GenerateSplashTiles, splashCommandId);
                 commandService.AddCommand(splashMenuItem);
 
                 var tileCommandId = new CommandID(CommandSet, UwpTileCommandId);
-                var tileMenuItem = new MenuCommand(UWPTileCallback, tileCommandId);
+                var tileMenuItem = new MenuCommand(GenerateTiles, tileCommandId);
                 commandService.AddCommand(tileMenuItem);
             }
 
@@ -115,14 +115,65 @@ namespace UWPTileGenerator
         }
 
         /// <summary>
+        /// This function is the callback used to execute the command when the menu item is clicked.
+        /// See the constructor to see how the menu item is associated with this function using
+        /// OleMenuCommandService service and MenuCommand class.
+        /// </summary>
+        /// <param name="sender">Event sender.</param>
+        /// <param name="e">Event args.</param>
+        private void GenerateTiles(object sender, EventArgs e)
+        {
+            TileCallback((path, project) =>
+            {
+                var selectedFileName = Path.GetFileName(path);
+
+                _tileSizes.Keys.AsParallel().ForAll((i) =>
+                {
+                    if (selectedFileName != i)
+                    {
+                        var newImagePath = GenerateImage(path, i);
+                        project.ProjectItems.AddFromFile(newImagePath);
+                        _outputWindow.OutputString($"Added {newImagePath} to the project \n");
+                    }
+                });
+            }, PackageManifestEditor.ManipulatePackageManifestForTiles);
+
+            _outputWindow.OutputString("Tile generation complete. \n");
+        }
+
+        /// <summary>
         /// Generates Splashes screen images.
         /// </summary>
         /// <param name="sender">The sender.</param>
         /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
         /// <exception cref="Exception">No file was selected</exception>
-        private void SplashTileCallback(object sender, EventArgs e)
+        private void GenerateSplashTiles(object sender, EventArgs e)
         {
-            var dte = (DTE2)this.ServiceProvider.GetService(typeof(DTE));
+            TileCallback((path, project) =>
+            {
+                var selectedFileName = Path.GetFileName(path);
+
+                _splashSizes.Keys.AsParallel().ForAll(i =>
+                {
+                    // I don't resize the selected file.
+                    if (selectedFileName == i) return;
+
+                    var newImagePath = GenerateImage(path, i);
+                    project.ProjectItems.AddFromFile(newImagePath);
+                    _outputWindow.OutputString($"Added {newImagePath} to the project \n");
+                });
+            }, PackageManifestEditor.ManipulatePackageManifestForSplash);
+        }
+
+        /// <summary>
+        /// All the logic to get the selected file and then perform the various steps to generate the tiles or splash.
+        /// </summary>
+        /// <param name="tileProcessingAction">The tile processing action.</param>
+        /// <param name="packageManifestAction">The package manifest action.</param>
+        /// <exception cref="Exception">No file was selected</exception>
+        private void TileCallback(Action<string, Project> tileProcessingAction, Action<string, string> packageManifestAction)
+        {
+            var dte = (DTE2)ServiceProvider.GetService(typeof(DTE));
             var hierarchy = dte.ToolWindows.SolutionExplorer;
             var selectedItems = (Array)hierarchy.SelectedItems;
             var selectedItem = selectedItems.Length > 0 ? (UIHierarchyItem)selectedItems.GetValue(0) : null;
@@ -142,7 +193,6 @@ namespace UWPTileGenerator
             var path = projectItem.Properties.Item("FullPath").Value.ToString();
             _outputWindow.OutputString($"The selected file is located at {path} \n");
 
-            var selectedFileName = Path.GetFileName(path);
             var extension = Path.GetExtension(path);
 
             if (ValidateImageFormat(extension)) return;
@@ -153,68 +203,30 @@ namespace UWPTileGenerator
 
             var project = projectItem.ContainingProject;
 
-            _splashSizes.Keys.AsParallel().ForAll(i =>
-            {
-                // I don't resize the selected file.
-                if (selectedFileName == i) return;
-
-                var newImagePath = GenerateTiles(path, i);
-                project.ProjectItems.AddFromFile(newImagePath);
-                _outputWindow.OutputString($"Added {newImagePath} to the project \n");
-            });
+            tileProcessingAction(path, project);
 
             project.Save();
             Cursor.Current = Cursors.Default;
 
-            FindAndUpdatePackageManifest(Path.GetDirectoryName(path), hierarchy, ManipulatePackageManifestForSplash);
+            FindAndUpdatePackageManifest(Path.GetDirectoryName(path), hierarchy, packageManifestAction);
             _outputWindow.OutputString("Tile generation complete. \n");
         }
 
+        /// <summary>
+        /// Validates the image format to make sure it's a PNG or SVG.
+        /// </summary>
+        /// <param name="extension">The extension.</param>
+        /// <returns>bool to state if the image is a valid format.</returns>
         private bool ValidateImageFormat(string extension)
         {
             if (extension != ".png" && extension != ".svg")
             {
-                VsShellUtilities.ShowMessageBox(this.ServiceProvider, "You need to select a valid png or svg", "",
+                VsShellUtilities.ShowMessageBox(ServiceProvider, "You need to select a valid png or svg", "",
                     OLEMSGICON.OLEMSGICON_CRITICAL, OLEMSGBUTTON.OLEMSGBUTTON_OK, OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
                 return true;
             }
 
             return false;
-        }
-
-        /// <summary>
-        /// Finds the package manifest and updates it.
-        /// </summary>
-        /// <param name="directory">The directory.</param>
-        /// <param name="hierarchy">The hierarchy.</param>
-        /// <param name="updatePackageManifestAction">The update package manifest action.</param>
-        private void FindAndUpdatePackageManifest(string directory, UIHierarchy hierarchy, Action<string, string> updatePackageManifestAction)
-        {
-            var solutionRoot = hierarchy.UIHierarchyItems.Item(1);
-
-            for (var i = 1; i <= solutionRoot.UIHierarchyItems.Count; i++)
-            {
-                var uiHierarchyItems = solutionRoot.UIHierarchyItems.Item(i).UIHierarchyItems;
-
-                foreach (UIHierarchyItem uiHierarchy in uiHierarchyItems)
-                {
-                    if (!uiHierarchy.Name.ToLower().Equals("package.appxmanifest")) continue;
-
-                    var projectItem = uiHierarchy.Object as ProjectItem;
-                    var path = projectItem?.Properties.Item("FullPath").Value.ToString();
-
-                    _outputWindow.OutputString($"The package manifest is located at {path} \n");
-
-                    // this is needed in case the image is in the root of the project.
-                    var imageDirectory = directory == Path.GetDirectoryName(path)
-                        ? string.Empty
-                        : string.Concat(directory.Replace(Path.GetDirectoryName(path) + "\\", ""), "\\");
-
-                    updatePackageManifestAction(path, imageDirectory);
-
-                    _outputWindow.OutputString("The package manifest has been updated \n");
-                }
-            }
         }
 
         /// <summary>
@@ -247,14 +259,14 @@ namespace UWPTileGenerator
 
             if (!isSquare)
             {
-                VsShellUtilities.ShowMessageBox(this.ServiceProvider,
+                VsShellUtilities.ShowMessageBox(ServiceProvider,
                         "The selected item must be square and ideally with no padding", "", OLEMSGICON.OLEMSGICON_CRITICAL,
                         OLEMSGBUTTON.OLEMSGBUTTON_OK, OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
             }
 
             if (width < 400 || height < 400)
             {
-                VsShellUtilities.ShowMessageBox(this.ServiceProvider,
+                VsShellUtilities.ShowMessageBox(ServiceProvider,
                     "The image you have provided may not scale well due to it's inital size. For better results try a square image larger than 400x400 pixels - bigger the better",
                     "Quality warning", OLEMSGICON.OLEMSGICON_WARNING, OLEMSGBUTTON.OLEMSGBUTTON_OK,
                     OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
@@ -264,94 +276,89 @@ namespace UWPTileGenerator
         }
 
         /// <summary>
-        /// This function is the callback used to execute the command when the menu item is clicked.
-        /// See the constructor to see how the menu item is associated with this function using
-        /// OleMenuCommandService service and MenuCommand class.
+        /// Populates the tile sizes dictionary.
         /// </summary>
-        /// <param name="sender">Event sender.</param>
-        /// <param name="e">Event args.</param>
-        private void UWPTileCallback(object sender, EventArgs e)
+        private void PopulateTileSizes()
         {
-            var dte = (DTE2)this.ServiceProvider.GetService(typeof(DTE));
-            var hierarchy = dte.ToolWindows.SolutionExplorer;
-            var selectedItems = (Array)hierarchy.SelectedItems;
-            var directory = string.Empty;
+            _tileSizes.Clear();
 
-            if (selectedItems != null)
-            {
-                foreach (UIHierarchyItem selectedItem in selectedItems)
-                {
-                    var projectItem = selectedItem.Object as ProjectItem;
-                    if (projectItem != null)
-                    {
-                        var path = projectItem.Properties.Item("FullPath").Value.ToString();
+            // Small
+            _tileSizes.Add("Square71x71Logo.scale-100.png", new Size(71, 71));
+            _tileSizes.Add("Square71x71Logo.scale-125.png", new Size(89, 89));
+            _tileSizes.Add("Square71x71Logo.scale-150.png", new Size(107, 107));
+            _tileSizes.Add("Square71x71Logo.scale-200.png", new Size(142, 142));
+            _tileSizes.Add("Square71x71Logo.scale-400.png", new Size(284, 284));
 
-                        directory = Path.GetDirectoryName(path);
-                        _outputWindow.OutputString($"The selected file is located at {path} \n");
-                        var project = projectItem.ContainingProject;
-                        var selectedFileName = Path.GetFileName(path);
-                        var extension = Path.GetExtension(path);
+            // Medium
+            _tileSizes.Add("Square150x150Logo.scale-100.png", new Size(150, 150));
+            _tileSizes.Add("Square150x150Logo.scale-125.png", new Size(188, 188));
+            _tileSizes.Add("Square150x150Logo.scale-150.png", new Size(225, 225));
+            _tileSizes.Add("Square150x150Logo.scale-200.png", new Size(300, 300));
+            _tileSizes.Add("Square150x150Logo.scale-400.png", new Size(600, 600));
 
-                        if (extension != ".png" && extension != ".svg")
-                        {
-                            VsShellUtilities.ShowMessageBox(this.ServiceProvider, "You need to select a valid png or svg", "Invalid file format", OLEMSGICON.OLEMSGICON_CRITICAL, OLEMSGBUTTON.OLEMSGBUTTON_OK, OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
-                            return;
-                        }
+            // Wide							 
+            _tileSizes.Add("Wide310x150Logo.scale-100.png", new Size(310, 150));
+            _tileSizes.Add("Wide310x150Logo.scale-125.png", new Size(388, 188));
+            _tileSizes.Add("Wide310x150Logo.scale-150.png", new Size(465, 225));
+            _tileSizes.Add("Wide310x150Logo.scale-200.png", new Size(620, 300));
+            _tileSizes.Add("Wide310x150Logo.scale-400.png", new Size(1240, 600));
 
-                        var isSquare = false;
-                        if (extension == ".png")
-                        {
-                            using (var selectedImage = Image.FromFile(path))
-                            {
-                                isSquare = Math.Abs(selectedImage.Width - selectedImage.Height) > 5;
+            // Large						 
+            _tileSizes.Add("Square310x310Logo.scale-100.png", new Size(310, 310));
+            _tileSizes.Add("Square310x310Logo.scale-125.png", new Size(388, 388));
+            _tileSizes.Add("Square310x310Logo.scale-150.png", new Size(465, 465));
+            _tileSizes.Add("Square310x310Logo.scale-200.png", new Size(620, 620));
+            _tileSizes.Add("Square310x310Logo.scale-400.png", new Size(1240, 1240));
 
-                                if (!isSquare)
-                                {
-                                    if (selectedImage.Width < 400 || selectedImage.Height < 400)
-                                    {
-                                        VsShellUtilities.ShowMessageBox(this.ServiceProvider, "The image you have provided may not scale well due to it's inital size. For better results try a square image larger than 400x400 pixels", "Quality warning", OLEMSGICON.OLEMSGICON_WARNING, OLEMSGBUTTON.OLEMSGBUTTON_OK, OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
-                                    }
-                                }
-                            }
-                        }
-                        else if (extension == ".svg")
-                        {
-                            var selectedImage = SvgDocument.Open(path);
-                            isSquare = Math.Abs(selectedImage.Width - selectedImage.Height) > 5;
-                        }
+            // App list
+            _tileSizes.Add("Square44x44Logo.scale-100.png", new Size(44, 44));
+            _tileSizes.Add("Square44x44Logo.scale-125.png", new Size(55, 55));
+            _tileSizes.Add("Square44x44Logo.scale-150.png", new Size(66, 66));
+            _tileSizes.Add("Square44x44Logo.scale-200.png", new Size(88, 88));
+            _tileSizes.Add("Square44x44Logo.scale-400.png", new Size(176, 176));
 
-                        if (isSquare)
-                        {
-                            VsShellUtilities.ShowMessageBox(this.ServiceProvider, "The selected item must be square and ideally with no padding", "", OLEMSGICON.OLEMSGICON_CRITICAL, OLEMSGBUTTON.OLEMSGBUTTON_OK, OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
-                            return;
-                        }
+            // Target size list assets with plate
+            _tileSizes.Add("Square44x44Logo.targetsize-16.png", new Size(16, 16));
+            _tileSizes.Add("Square44x44Logo.targetsize-24.png", new Size(24, 24));
+            _tileSizes.Add("Square44x44Logo.targetsize-32.png", new Size(32, 32));
+            _tileSizes.Add("Square44x44Logo.targetsize-48.png", new Size(48, 48));
+            _tileSizes.Add("Square44x44Logo.targetsize-256.png", new Size(256, 256));
 
-                        var imagePaths = new List<string>();
+            _tileSizes.Add("Square44x44Logo.targetsize-16_altform-unplated.png", new Size(16, 16));
+            _tileSizes.Add("Square44x44Logo.targetsize-24_altform-unplated.png", new Size(24, 24));
+            _tileSizes.Add("Square44x44Logo.targetsize-32_altform-unplated.png", new Size(32, 32));
+            _tileSizes.Add("Square44x44Logo.targetsize-48_altform-unplated.png", new Size(48, 48));
+            _tileSizes.Add("Square44x44Logo.targetsize-256_altform-unplated.png", new Size(256, 256));
 
-                        Cursor.Current = Cursors.WaitCursor;
+            _tileSizes.Add("NewStoreLogo.scale-100.png", new Size(50, 50));
+            _tileSizes.Add("NewStoreLogo.scale-125.png", new Size(63, 63));
+            _tileSizes.Add("NewStoreLogo.scale-150.png", new Size(75, 75));
+            _tileSizes.Add("NewStoreLogo.scale-200.png", new Size(100, 100));
+            _tileSizes.Add("NewStoreLogo.scale-400.png", new Size(200, 200));
+        }
 
-                        _tileSizes.Keys.AsParallel().ForAll((i) =>
-                        {
-                            if (selectedFileName != i)
-                            {
-                                var newImagePath = GenerateTiles(path, i);
-                                imagePaths.Add(newImagePath);
-                            }
-                        });
+        /// <summary>
+        /// Populates the splash sizes dictionary.
+        /// </summary>
+        private void PopulateSplashSizes()
+        {
+            _splashSizes.Clear();
 
-                        foreach (var item in imagePaths)
-                        {
-                            project.ProjectItems.AddFromFile(item);
-                            _outputWindow.OutputString($"Added {item} to the project \n");
-                        }
+            _splashSizes.Add("SplashScreen.scale-400.png", new Size(2480, 1200));
+            _splashSizes.Add("SplashScreen.scale-200.png", new Size(1240, 600));
+            _splashSizes.Add("SplashScreen.scale-150.png", new Size(930, 450));
+            _splashSizes.Add("SplashScreen.scale-125.png", new Size(775, 375));
+            _splashSizes.Add("SplashScreen.scale-100.png", new Size(620, 300));
+        }
 
-                        project.Save();
-                    }
-
-                    Cursor.Current = Cursors.Default;
-                }
-            }
-
+        /// <summary>
+        /// Finds the package manifest and updates it.
+        /// </summary>
+        /// <param name="directory">The directory.</param>
+        /// <param name="hierarchy">The hierarchy.</param>
+        /// <param name="updatePackageManifestAction">The update package manifest tileProcessingAction.</param>
+        private void FindAndUpdatePackageManifest(string directory, UIHierarchy hierarchy, Action<string, string> updatePackageManifestAction)
+        {
             var solutionRoot = hierarchy.UIHierarchyItems.Item(1);
 
             for (var i = 1; i <= solutionRoot.UIHierarchyItems.Count; i++)
@@ -360,163 +367,23 @@ namespace UWPTileGenerator
 
                 foreach (UIHierarchyItem uiHierarchy in uiHierarchyItems)
                 {
-                    if (uiHierarchy.Name.ToLower().Equals("package.appxmanifest"))
-                    {
-                        var projectItem = uiHierarchy.Object as ProjectItem;
-                        var path = projectItem.Properties.Item("FullPath").Value.ToString();
-                        _outputWindow.OutputString($"The package manifest is located at {path} \n");
+                    if (!uiHierarchy.Name.ToLower().Equals("package.appxmanifest")) continue;
 
-                        // this is needed in case the image is in the root of the project.
-                        if (directory != null)
-                        {
-                            var imageDirectory = directory == Path.GetDirectoryName(path) ? string.Empty : string.Concat(directory.Replace(Path.GetDirectoryName(path) + "\\", ""), "\\");
+                    var projectItem = uiHierarchy.Object as ProjectItem;
+                    var path = projectItem?.Properties.Item("FullPath").Value.ToString();
 
-                            ManipulatePackageManifestForTiles(path, imageDirectory);
-                        }
+                    _outputWindow.OutputString($"The package manifest is located at {path} \n");
 
-                        _outputWindow.OutputString($"The package manifest has been updated \n");
-                    }
+                    // this is needed in case the image is in the root of the project.
+                    var imageDirectory = directory == Path.GetDirectoryName(path)
+                        ? string.Empty
+                        : string.Concat(directory.Replace(Path.GetDirectoryName(path) + "\\", ""), "\\");
+
+                    updatePackageManifestAction(path, imageDirectory);
+
+                    _outputWindow.OutputString("The package manifest has been updated \n");
                 }
             }
-
-            _outputWindow.OutputString($"Tile generation complete. \n");
-        }
-
-        /// <summary>
-        /// Populates the tile sizes dictionary.
-        /// </summary>
-        private void PopulateTileSizes()
-        {
-            this._tileSizes.Clear();
-
-            // Small
-            this._tileSizes.Add("Square71x71Logo.scale-100.png", new Size(71, 71));
-            this._tileSizes.Add("Square71x71Logo.scale-125.png", new Size(89, 89));
-            this._tileSizes.Add("Square71x71Logo.scale-150.png", new Size(107, 107));
-            this._tileSizes.Add("Square71x71Logo.scale-200.png", new Size(142, 142));
-            this._tileSizes.Add("Square71x71Logo.scale-400.png", new Size(284, 284));
-
-            // Medium
-            this._tileSizes.Add("Square150x150Logo.scale-100.png", new Size(150, 150));
-            this._tileSizes.Add("Square150x150Logo.scale-125.png", new Size(188, 188));
-            this._tileSizes.Add("Square150x150Logo.scale-150.png", new Size(225, 225));
-            this._tileSizes.Add("Square150x150Logo.scale-200.png", new Size(300, 300));
-            this._tileSizes.Add("Square150x150Logo.scale-400.png", new Size(600, 600));
-
-            // Wide							 
-            this._tileSizes.Add("Wide310x150Logo.scale-100.png", new Size(310, 150));
-            this._tileSizes.Add("Wide310x150Logo.scale-125.png", new Size(388, 188));
-            this._tileSizes.Add("Wide310x150Logo.scale-150.png", new Size(465, 225));
-            this._tileSizes.Add("Wide310x150Logo.scale-200.png", new Size(620, 300));
-            this._tileSizes.Add("Wide310x150Logo.scale-400.png", new Size(1240, 600));
-
-            // Large						 
-            this._tileSizes.Add("Square310x310Logo.scale-100.png", new Size(310, 310));
-            this._tileSizes.Add("Square310x310Logo.scale-125.png", new Size(388, 388));
-            this._tileSizes.Add("Square310x310Logo.scale-150.png", new Size(465, 465));
-            this._tileSizes.Add("Square310x310Logo.scale-200.png", new Size(620, 620));
-            this._tileSizes.Add("Square310x310Logo.scale-400.png", new Size(1240, 1240));
-
-            // App list
-            this._tileSizes.Add("Square44x44Logo.scale-100.png", new Size(44, 44));
-            this._tileSizes.Add("Square44x44Logo.scale-125.png", new Size(55, 55));
-            this._tileSizes.Add("Square44x44Logo.scale-150.png", new Size(66, 66));
-            this._tileSizes.Add("Square44x44Logo.scale-200.png", new Size(88, 88));
-            this._tileSizes.Add("Square44x44Logo.scale-400.png", new Size(176, 176));
-
-            // Target size list assets with plate
-            this._tileSizes.Add("Square44x44Logo.targetsize-16.png", new Size(16, 16));
-            this._tileSizes.Add("Square44x44Logo.targetsize-24.png", new Size(24, 24));
-            this._tileSizes.Add("Square44x44Logo.targetsize-32.png", new Size(32, 32));
-            this._tileSizes.Add("Square44x44Logo.targetsize-48.png", new Size(48, 48));
-            this._tileSizes.Add("Square44x44Logo.targetsize-256.png", new Size(256, 256));
-
-            this._tileSizes.Add("Square44x44Logo.targetsize-16_altform-unplated.png", new Size(16, 16));
-            this._tileSizes.Add("Square44x44Logo.targetsize-24_altform-unplated.png", new Size(24, 24));
-            this._tileSizes.Add("Square44x44Logo.targetsize-32_altform-unplated.png", new Size(32, 32));
-            this._tileSizes.Add("Square44x44Logo.targetsize-48_altform-unplated.png", new Size(48, 48));
-            this._tileSizes.Add("Square44x44Logo.targetsize-256_altform-unplated.png", new Size(256, 256));
-
-            this._tileSizes.Add("NewStoreLogo.scale-100.png", new Size(50, 50));
-            this._tileSizes.Add("NewStoreLogo.scale-125.png", new Size(63, 63));
-            this._tileSizes.Add("NewStoreLogo.scale-150.png", new Size(75, 75));
-            this._tileSizes.Add("NewStoreLogo.scale-200.png", new Size(100, 100));
-            this._tileSizes.Add("NewStoreLogo.scale-400.png", new Size(200, 200));
-        }
-
-        /// <summary>
-        /// Populates the splash sizes dictionary.
-        /// </summary>
-        private void PopulateSplashSizes()
-        {
-            this._splashSizes.Clear();
-
-            this._splashSizes.Add("SplashScreen.scale-400.png", new Size(2480, 1200));
-            this._splashSizes.Add("SplashScreen.scale-200.png", new Size(1240, 600));
-            this._splashSizes.Add("SplashScreen.scale-150.png", new Size(930, 450));
-            this._splashSizes.Add("SplashScreen.scale-125.png", new Size(775, 375));
-            this._splashSizes.Add("SplashScreen.scale-100.png", new Size(620, 300));
-        }
-
-        /// <summary>
-        /// Manipulates the package manifest for splash.
-        /// </summary>
-        /// <param name="path">The path.</param>
-        /// <param name="directory">The directory.</param>
-        private static void ManipulatePackageManifestForSplash(string path, string directory)
-        {
-            var xdocument = XDocument.Parse(File.ReadAllText(path));
-            var xmlNamespace = "http://schemas.microsoft.com/appx/manifest/uap/windows10";
-
-            var visualElemment = xdocument.Descendants(XName.Get("VisualElements", xmlNamespace)).FirstOrDefault();
-            if (visualElemment != null)
-            {
-
-                var splashScreen = xdocument.Descendants(XName.Get("SplashScreen", xmlNamespace)).FirstOrDefault();
-                if (splashScreen == null)
-                {
-                    visualElemment.Add(new XElement(XName.Get("SplashScreen", xmlNamespace)));
-                    splashScreen = xdocument.Descendants(XName.Get("SplashScreen", xmlNamespace)).FirstOrDefault();
-                }
-
-                splashScreen.AddAttribute("Image", $@"{directory}SplashScreen.png");
-                xdocument.Save(path);
-            }
-        }
-
-        /// <summary>
-        /// Manipulates the package manifest for tiles.
-        /// </summary>
-        /// <param name="path">The path.</param>
-        /// <param name="directory">The directory.</param>
-        private static void ManipulatePackageManifestForTiles(string path, string directory)
-        {
-            var xdocument = XDocument.Parse(File.ReadAllText(path));
-            var xmlNamespace = "http://schemas.microsoft.com/appx/manifest/uap/windows10";
-            var defaultNamespace = "http://schemas.microsoft.com/appx/manifest/foundation/windows10";
-
-            var logo = xdocument.Descendants(XName.Get("Logo", defaultNamespace)).First();
-            logo.Value = $@"{directory}NewStoreLogo.png";
-
-            var visualElemment = xdocument.Descendants(XName.Get("VisualElements", xmlNamespace)).FirstOrDefault();
-            if (visualElemment != null)
-            {
-                visualElemment.AddAttribute("Square150x150Logo", $@"{directory}Square150x150Logo.png");
-                visualElemment.AddAttribute("Square44x44Logo", $@"{directory}Square44x44Logo.png");
-            }
-
-            var defaultTitle = xdocument.Descendants(XName.Get("DefaultTile", xmlNamespace)).FirstOrDefault();
-            if (defaultTitle == null)
-            {
-                visualElemment.Add(new XElement(XName.Get("DefaultTile", xmlNamespace)));
-                defaultTitle = xdocument.Descendants(XName.Get("DefaultTile", xmlNamespace)).FirstOrDefault();
-            }
-
-            defaultTitle.AddAttribute("Wide310x150Logo", $@"{directory}Wide310x150Logo.png");
-            defaultTitle.AddAttribute("Square310x310Logo", $@"{directory}Square310x310Logo.png");
-            defaultTitle.AddAttribute("Square71x71Logo", $@"{directory}Square71x71Logo.png");
-
-            xdocument.Save(path);
         }
 
         /// <summary>
@@ -525,9 +392,9 @@ namespace UWPTileGenerator
         /// <param name="path">The path.</param>
         /// <param name="sizeKey">The size key.</param>
         /// <returns></returns>
-        private string GenerateTiles(string path, string sizeKey)
+        private string GenerateImage(string path, string sizeKey)
         {
-            var size = sizeKey.StartsWith("Splash") ? this._splashSizes[sizeKey] : this._tileSizes[sizeKey];
+            var size = sizeKey.StartsWith("Splash") ? _splashSizes[sizeKey] : _tileSizes[sizeKey];
             double xMarginSize = 1;
             double yMarginSize = 1;
 
@@ -582,7 +449,7 @@ namespace UWPTileGenerator
         /// <param name="yMargin">The y margin.</param>
         /// <param name="preserveAspectRatio">if set to <c>true</c> [preserve aspect ratio].</param>
         /// <returns></returns>
-        public static Image ResizeImage(SvgDocument image, Size size, double xMargin = 1, double yMargin = 1, bool preserveAspectRatio = true)
+        private static Image ResizeImage(SvgDocument image, Size size, double xMargin = 1, double yMargin = 1, bool preserveAspectRatio = true)
         {
             int newWidth;
             int newHeight;
@@ -626,7 +493,7 @@ namespace UWPTileGenerator
         /// <param name="yMargin">The y margin.</param>
         /// <param name="preserveAspectRatio">if set to <c>true</c> [preserve aspect ratio].</param>
         /// <returns></returns>
-        public static Image ResizeImage(Bitmap image, Size size, double xMargin = 1, double yMargin = 1, bool preserveAspectRatio = true)
+        private static Image ResizeImage(Bitmap image, Size size, double xMargin = 1, double yMargin = 1, bool preserveAspectRatio = true)
         {
             int newWidth;
             int newHeight;
