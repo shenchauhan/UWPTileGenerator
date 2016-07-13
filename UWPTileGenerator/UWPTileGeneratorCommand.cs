@@ -5,39 +5,24 @@
 //------------------------------------------------------------------------------
 
 using System;
-using System.Collections;
 using System.Linq;
 using System.ComponentModel.Design;
 using EnvDTE80;
 using EnvDTE;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
-using System.Xml.Linq;
 using System.IO;
 using System.Drawing;
-using System.Drawing.Drawing2D;
-using System.Collections.Generic;
 using System.Windows.Forms;
 using Svg;
-using Svg.Transforms;
 
 namespace UWPTileGenerator
 {
     /// <summary>
-    /// Command handler
+    /// Command handler for the UWP Tile Generator.
     /// </summary>
     internal sealed class UWPTileGeneratorCommand
     {
-        /// <summary>
-        /// The tile sizes based on target size.
-        /// </summary>
-        private readonly Dictionary<string, Size> _tileSizes = new Dictionary<string, Size>();
-
-        /// <summary>
-        /// The splash sizes based on target size.
-        /// </summary>
-        private readonly Dictionary<string, Size> _splashSizes = new Dictionary<string, Size>();
-
         /// <summary>
         /// VS Package that provides this command, not null.
         /// </summary>
@@ -108,9 +93,6 @@ namespace UWPTileGenerator
                 commandService.AddCommand(tileMenuItem);
             }
 
-            PopulateTileSizes();
-            PopulateSplashSizes();
-
             _outputWindow = ServiceProvider.GetService(typeof(SVsGeneralOutputWindowPane)) as IVsOutputWindowPane;
         }
 
@@ -127,11 +109,11 @@ namespace UWPTileGenerator
             {
                 var selectedFileName = Path.GetFileName(path);
 
-                _tileSizes.Keys.AsParallel().ForAll((i) =>
+                ImageGeneration.TileSizes.Keys.AsParallel().ForAll((i) =>
                 {
                     if (selectedFileName != i)
                     {
-                        var newImagePath = GenerateImage(path, i);
+                        var newImagePath = ImageGeneration.GenerateImage(path, i);
                         project.ProjectItems.AddFromFile(newImagePath);
                         _outputWindow.OutputString($"Added {newImagePath} to the project \n");
                     }
@@ -153,16 +135,18 @@ namespace UWPTileGenerator
             {
                 var selectedFileName = Path.GetFileName(path);
 
-                _splashSizes.Keys.AsParallel().ForAll(i =>
+                ImageGeneration.SplashSizes.Keys.AsParallel().ForAll(i =>
                 {
                     // I don't resize the selected file.
                     if (selectedFileName == i) return;
 
-                    var newImagePath = GenerateImage(path, i);
+                    var newImagePath = ImageGeneration.GenerateImage(path, i);
                     project.ProjectItems.AddFromFile(newImagePath);
                     _outputWindow.OutputString($"Added {newImagePath} to the project \n");
                 });
             }, PackageManifestEditor.ManipulatePackageManifestForSplash);
+
+            _outputWindow.OutputString("Splash generation complete. \n");
         }
 
         /// <summary>
@@ -209,7 +193,6 @@ namespace UWPTileGenerator
             Cursor.Current = Cursors.Default;
 
             FindAndUpdatePackageManifest(Path.GetDirectoryName(path), hierarchy, packageManifestAction);
-            _outputWindow.OutputString("Tile generation complete. \n");
         }
 
         /// <summary>
@@ -276,82 +259,6 @@ namespace UWPTileGenerator
         }
 
         /// <summary>
-        /// Populates the tile sizes dictionary.
-        /// </summary>
-        private void PopulateTileSizes()
-        {
-            _tileSizes.Clear();
-
-            // Small
-            _tileSizes.Add("Square71x71Logo.scale-100.png", new Size(71, 71));
-            _tileSizes.Add("Square71x71Logo.scale-125.png", new Size(89, 89));
-            _tileSizes.Add("Square71x71Logo.scale-150.png", new Size(107, 107));
-            _tileSizes.Add("Square71x71Logo.scale-200.png", new Size(142, 142));
-            _tileSizes.Add("Square71x71Logo.scale-400.png", new Size(284, 284));
-
-            // Medium
-            _tileSizes.Add("Square150x150Logo.scale-100.png", new Size(150, 150));
-            _tileSizes.Add("Square150x150Logo.scale-125.png", new Size(188, 188));
-            _tileSizes.Add("Square150x150Logo.scale-150.png", new Size(225, 225));
-            _tileSizes.Add("Square150x150Logo.scale-200.png", new Size(300, 300));
-            _tileSizes.Add("Square150x150Logo.scale-400.png", new Size(600, 600));
-
-            // Wide							 
-            _tileSizes.Add("Wide310x150Logo.scale-100.png", new Size(310, 150));
-            _tileSizes.Add("Wide310x150Logo.scale-125.png", new Size(388, 188));
-            _tileSizes.Add("Wide310x150Logo.scale-150.png", new Size(465, 225));
-            _tileSizes.Add("Wide310x150Logo.scale-200.png", new Size(620, 300));
-            _tileSizes.Add("Wide310x150Logo.scale-400.png", new Size(1240, 600));
-
-            // Large						 
-            _tileSizes.Add("Square310x310Logo.scale-100.png", new Size(310, 310));
-            _tileSizes.Add("Square310x310Logo.scale-125.png", new Size(388, 388));
-            _tileSizes.Add("Square310x310Logo.scale-150.png", new Size(465, 465));
-            _tileSizes.Add("Square310x310Logo.scale-200.png", new Size(620, 620));
-            _tileSizes.Add("Square310x310Logo.scale-400.png", new Size(1240, 1240));
-
-            // App list
-            _tileSizes.Add("Square44x44Logo.scale-100.png", new Size(44, 44));
-            _tileSizes.Add("Square44x44Logo.scale-125.png", new Size(55, 55));
-            _tileSizes.Add("Square44x44Logo.scale-150.png", new Size(66, 66));
-            _tileSizes.Add("Square44x44Logo.scale-200.png", new Size(88, 88));
-            _tileSizes.Add("Square44x44Logo.scale-400.png", new Size(176, 176));
-
-            // Target size list assets with plate
-            _tileSizes.Add("Square44x44Logo.targetsize-16.png", new Size(16, 16));
-            _tileSizes.Add("Square44x44Logo.targetsize-24.png", new Size(24, 24));
-            _tileSizes.Add("Square44x44Logo.targetsize-32.png", new Size(32, 32));
-            _tileSizes.Add("Square44x44Logo.targetsize-48.png", new Size(48, 48));
-            _tileSizes.Add("Square44x44Logo.targetsize-256.png", new Size(256, 256));
-
-            _tileSizes.Add("Square44x44Logo.targetsize-16_altform-unplated.png", new Size(16, 16));
-            _tileSizes.Add("Square44x44Logo.targetsize-24_altform-unplated.png", new Size(24, 24));
-            _tileSizes.Add("Square44x44Logo.targetsize-32_altform-unplated.png", new Size(32, 32));
-            _tileSizes.Add("Square44x44Logo.targetsize-48_altform-unplated.png", new Size(48, 48));
-            _tileSizes.Add("Square44x44Logo.targetsize-256_altform-unplated.png", new Size(256, 256));
-
-            _tileSizes.Add("NewStoreLogo.scale-100.png", new Size(50, 50));
-            _tileSizes.Add("NewStoreLogo.scale-125.png", new Size(63, 63));
-            _tileSizes.Add("NewStoreLogo.scale-150.png", new Size(75, 75));
-            _tileSizes.Add("NewStoreLogo.scale-200.png", new Size(100, 100));
-            _tileSizes.Add("NewStoreLogo.scale-400.png", new Size(200, 200));
-        }
-
-        /// <summary>
-        /// Populates the splash sizes dictionary.
-        /// </summary>
-        private void PopulateSplashSizes()
-        {
-            _splashSizes.Clear();
-
-            _splashSizes.Add("SplashScreen.scale-400.png", new Size(2480, 1200));
-            _splashSizes.Add("SplashScreen.scale-200.png", new Size(1240, 600));
-            _splashSizes.Add("SplashScreen.scale-150.png", new Size(930, 450));
-            _splashSizes.Add("SplashScreen.scale-125.png", new Size(775, 375));
-            _splashSizes.Add("SplashScreen.scale-100.png", new Size(620, 300));
-        }
-
-        /// <summary>
         /// Finds the package manifest and updates it.
         /// </summary>
         /// <param name="directory">The directory.</param>
@@ -384,157 +291,6 @@ namespace UWPTileGenerator
                     _outputWindow.OutputString("The package manifest has been updated \n");
                 }
             }
-        }
-
-        /// <summary>
-        /// Generates the tiles.
-        /// </summary>
-        /// <param name="path">The path.</param>
-        /// <param name="sizeKey">The size key.</param>
-        /// <returns></returns>
-        private string GenerateImage(string path, string sizeKey)
-        {
-            var size = sizeKey.StartsWith("Splash") ? _splashSizes[sizeKey] : _tileSizes[sizeKey];
-            double xMarginSize = 1;
-            double yMarginSize = 1;
-
-            if (sizeKey.StartsWith("Square71x71Logo"))
-            {
-                xMarginSize = 0.5;
-                yMarginSize = 0.5;
-            }
-            else if (sizeKey.StartsWith("Square150x150Logo") || sizeKey.StartsWith("Wide310x150Logo") || sizeKey.StartsWith("Square310x310Logo"))
-            {
-                xMarginSize = 0.33;
-                yMarginSize = 0.33;
-            }
-            else if (sizeKey.StartsWith("SplashScreen"))
-            {
-                xMarginSize = 0.33;
-                yMarginSize = 0.33;
-            }
-
-            var newImagePath = Path.Combine(Path.GetDirectoryName(path), sizeKey);
-
-            var extension = Path.GetExtension(path);
-            if (extension == ".png")
-            {
-                using (var originalImage = Image.FromFile(path))
-                {
-                    using (var resizedImage = ResizeImage((Bitmap)originalImage, size, xMargin: xMarginSize, yMargin: yMarginSize))
-                    {
-                        resizedImage.Save(newImagePath);
-                    }
-                }
-            }
-            else if (extension == ".svg")
-            {
-                using (var resizedImage = ResizeImage(SvgDocument.Open(path), size, xMargin: xMarginSize, yMargin: yMarginSize))
-                {
-                    resizedImage.Save(newImagePath);
-                }
-            }
-
-            _outputWindow.OutputString($"Generated image: {newImagePath} \n");
-
-            return newImagePath;
-        }
-
-        /// <summary>
-        /// Resizes the image.
-        /// </summary>
-        /// <param name="image">The image.</param>
-        /// <param name="size">The size.</param>
-        /// <param name="xMargin">The x margin.</param>
-        /// <param name="yMargin">The y margin.</param>
-        /// <param name="preserveAspectRatio">if set to <c>true</c> [preserve aspect ratio].</param>
-        /// <returns></returns>
-        private static Image ResizeImage(SvgDocument image, Size size, double xMargin = 1, double yMargin = 1, bool preserveAspectRatio = true)
-        {
-            int newWidth;
-            int newHeight;
-
-            var originalWidth = image.Width.Value;
-            var originalHeight = image.Height.Value;
-
-            float percentWidth = (float)size.Width / (float)originalWidth;
-            float percentHeight = (float)size.Height / (float)originalHeight;
-            float percent = percentHeight < percentWidth ? percentHeight : percentWidth;
-
-            newWidth = (int)((originalWidth * percent) * xMargin);
-            newHeight = (int)((originalHeight * percent) * yMargin);
-
-            image.Transforms.Add(new SvgScale(newWidth / originalWidth, newHeight / originalHeight));
-
-            var xPosition = (size.Width - newWidth) / 2;
-            var yPosition = (size.Height - newHeight) / 2;
-
-            var newImage = new Bitmap(size.Width, size.Height);
-
-            using (Graphics graphicsHandle = Graphics.FromImage(newImage))
-            {
-                graphicsHandle.InterpolationMode = InterpolationMode.HighQualityBicubic;
-                using (var bitmap = image.Draw(newWidth + 10, newHeight + 10))
-                {
-                    bitmap.MakeTransparent();
-                    graphicsHandle.DrawImage(bitmap, xPosition, yPosition);
-                }
-            }
-
-            return newImage;
-        }
-
-        /// <summary>
-        /// Resizes the image.
-        /// </summary>
-        /// <param name="image">The image.</param>
-        /// <param name="size">The size.</param>
-        /// <param name="xMargin">The x margin.</param>
-        /// <param name="yMargin">The y margin.</param>
-        /// <param name="preserveAspectRatio">if set to <c>true</c> [preserve aspect ratio].</param>
-        /// <returns></returns>
-        private static Image ResizeImage(Bitmap image, Size size, double xMargin = 1, double yMargin = 1, bool preserveAspectRatio = true)
-        {
-            int newWidth;
-            int newHeight;
-            if (preserveAspectRatio)
-            {
-                int originalWidth = image.Width;
-                int originalHeight = image.Height;
-
-                float percentWidth = (float)size.Width / (float)originalWidth;
-                float percentHeight = (float)size.Height / (float)originalHeight;
-                float percent = percentHeight < percentWidth ? percentHeight : percentWidth;
-
-                newWidth = (int)((originalWidth * percent) * xMargin);
-                newHeight = (int)((originalHeight * percent) * yMargin);
-            }
-            else
-            {
-                newWidth = size.Width;
-                newHeight = size.Height;
-            }
-
-            var xPosition = (size.Width - newWidth) / 2;
-            var yPosition = (size.Height - newHeight) / 2;
-
-            var newImage = new Bitmap(size.Width, size.Height);
-
-            var firstPixel = image.GetPixel(0, 0);
-
-            var brush = new SolidBrush(firstPixel);
-
-            using (Graphics graphicsHandle = Graphics.FromImage(newImage))
-            {
-                graphicsHandle.InterpolationMode = InterpolationMode.HighQualityBicubic;
-                graphicsHandle.FillRectangle(brush, new Rectangle(0, 0, xPosition + 10, size.Height + 10));
-                graphicsHandle.FillRectangle(brush, new Rectangle(newWidth + xPosition - 10, 0, size.Width - (newWidth + xPosition) + 10, size.Height + 10));
-                graphicsHandle.FillRectangle(brush, new Rectangle(0, 0, size.Width + 10, yPosition + 10));
-                graphicsHandle.FillRectangle(brush, new Rectangle(0, yPosition + newHeight - 10, size.Width + 10, yPosition + 10));
-                graphicsHandle.DrawImage(image, xPosition, yPosition, newWidth, newHeight);
-            }
-
-            return newImage;
         }
     }
 }
