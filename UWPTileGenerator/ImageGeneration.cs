@@ -224,15 +224,15 @@ namespace UWPTileGenerator
             int newHeight;
             if (preserveAspectRatio)
             {
-                int originalWidth = image.Width;
-                int originalHeight = image.Height;
+                var originalWidth = image.Width;
+                var originalHeight = image.Height;
 
-                float percentWidth = (float)size.Width / (float)originalWidth;
-                float percentHeight = (float)size.Height / (float)originalHeight;
-                float percent = percentHeight < percentWidth ? percentHeight : percentWidth;
+                var percentWidth = size.Width / (float)originalWidth;
+                var percentHeight = size.Height / (float)originalHeight;
+                var percent = percentHeight < percentWidth ? percentHeight : percentWidth;
 
-                newWidth = (int)((originalWidth * percent) * xMargin);
-                newHeight = (int)((originalHeight * percent) * yMargin);
+                newWidth = (int)(originalWidth * percent * xMargin);
+                newHeight = (int)(originalHeight * percent * yMargin);
             }
             else
             {
@@ -244,18 +244,13 @@ namespace UWPTileGenerator
             var yPosition = (size.Height - newHeight) / 2;
 
             var newImage = new Bitmap(size.Width, size.Height);
-
             var firstPixel = image.GetPixel(0, 0);
-
             var brush = new SolidBrush(firstPixel);
-
-            using (Graphics graphicsHandle = Graphics.FromImage(newImage))
+            
+            using (var graphicsHandle = Graphics.FromImage(newImage))
             {
-                graphicsHandle.InterpolationMode = InterpolationMode.HighQualityBicubic;
-                graphicsHandle.FillRectangle(brush, new Rectangle(0, 0, xPosition + 10, size.Height + 10));
-                graphicsHandle.FillRectangle(brush, new Rectangle(newWidth + xPosition - 10, 0, size.Width - (newWidth + xPosition) + 10, size.Height + 10));
-                graphicsHandle.FillRectangle(brush, new Rectangle(0, 0, size.Width + 10, yPosition + 10));
-                graphicsHandle.FillRectangle(brush, new Rectangle(0, yPosition + newHeight - 10, size.Width + 10, yPosition + 10));
+                graphicsHandle.InterpolationMode = InterpolationMode.Default;
+                graphicsHandle.FillRectangle(brush, new Rectangle(0, 0, size.Width, size.Height));
                 graphicsHandle.DrawImage(image, xPosition, yPosition, newWidth, newHeight);
             }
 
