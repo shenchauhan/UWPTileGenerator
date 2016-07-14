@@ -125,6 +125,11 @@ namespace UWPTileGenerator
             double xMarginSize = 1;
             double yMarginSize = 1;
 
+            if (sizeKey.StartsWith("Square44x44Logo"))
+            {
+                xMarginSize = 0.75;
+                yMarginSize = 0.75;
+            }
             if (sizeKey.StartsWith("Square71x71Logo"))
             {
                 xMarginSize = 0.5;
@@ -174,7 +179,7 @@ namespace UWPTileGenerator
         /// <param name="yMargin">The y margin.</param>
         /// <param name="preserveAspectRatio">if set to <c>true</c> [preserve aspect ratio].</param>
         /// <returns></returns>
-        public static Image ResizeImage(SvgDocument image, Size size, double xMargin = 0, double yMargin = 0, bool preserveAspectRatio = true)
+        public static Image ResizeImage(SvgDocument image, Size size, double xMargin = 1, double yMargin = 1, bool preserveAspectRatio = true)
         {
             var originalImageSize = new Size((int)image.Width.Value, (int)image.Height.Value);
             return ResizeImage((newImage, x, y, width, height) =>
@@ -205,7 +210,7 @@ namespace UWPTileGenerator
         /// <param name="yMargin">The y margin.</param>
         /// <param name="preserveAspectRatio">if set to <c>true</c> [preserve aspect ratio].</param>
         /// <returns></returns>
-        public static Image ResizeImage(Bitmap image, Size size, double xMargin = 0, double yMargin = 0, bool preserveAspectRatio = true)
+        public static Image ResizeImage(Bitmap image, Size size, double xMargin = 1, double yMargin = 1, bool preserveAspectRatio = true)
         {
             var originalImageSize = new Size(image.Width, image.Height);
             return ResizeImage((newImage, x, y, width, height) =>
