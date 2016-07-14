@@ -230,6 +230,14 @@ namespace UWPTileGenerator
                     width = selectedImage.Width;
                     height = selectedImage.Height;
                 }
+
+                if (width < 400 || height < 400)
+                {
+                    VsShellUtilities.ShowMessageBox(ServiceProvider,
+                        "The image you have provided may not scale well due to it's inital size. For better results try a square image larger than 400x400 pixels - bigger the better",
+                        "Quality warning", OLEMSGICON.OLEMSGICON_WARNING, OLEMSGBUTTON.OLEMSGBUTTON_OK,
+                        OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
+                }
             }
             else if (extension == ".svg")
             {
@@ -245,14 +253,6 @@ namespace UWPTileGenerator
                 VsShellUtilities.ShowMessageBox(ServiceProvider,
                         "The selected item must be square and ideally with no padding", "", OLEMSGICON.OLEMSGICON_CRITICAL,
                         OLEMSGBUTTON.OLEMSGBUTTON_OK, OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
-            }
-
-            if (width < 400 || height < 400)
-            {
-                VsShellUtilities.ShowMessageBox(ServiceProvider,
-                    "The image you have provided may not scale well due to it's inital size. For better results try a square image larger than 400x400 pixels - bigger the better",
-                    "Quality warning", OLEMSGICON.OLEMSGICON_WARNING, OLEMSGBUTTON.OLEMSGBUTTON_OK,
-                    OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
             }
 
             return isSquare;
