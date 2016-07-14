@@ -3,7 +3,7 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
 using Svg;
-using Svg.Transforms;
+using System;
 
 namespace UWPTileGenerator
 {
@@ -148,7 +148,7 @@ namespace UWPTileGenerator
             {
                 using (var originalImage = Image.FromFile(path))
                 {
-                    using (var resizedImage = ImageGeneration.ResizeImage((Bitmap)originalImage, size, xMargin: xMarginSize, yMargin: yMarginSize))
+                    using (var resizedImage = ResizeImage((Bitmap)originalImage, size, xMargin: xMarginSize, yMargin: yMarginSize))
                     {
                         resizedImage.Save(newImagePath);
                     }
@@ -156,7 +156,7 @@ namespace UWPTileGenerator
             }
             else if (extension == ".svg")
             {
-                using (var resizedImage = ImageGeneration.ResizeImage(SvgDocument.Open(path), size, xMargin: xMarginSize, yMargin: yMarginSize))
+                using (var resizedImage = ResizeImage(SvgDocument.Open(path), size, xMargin: xMarginSize, yMargin: yMarginSize))
                 {
                     resizedImage.Save(newImagePath);
                 }
@@ -174,39 +174,26 @@ namespace UWPTileGenerator
         /// <param name="yMargin">The y margin.</param>
         /// <param name="preserveAspectRatio">if set to <c>true</c> [preserve aspect ratio].</param>
         /// <returns></returns>
-        public static Image ResizeImage(SvgDocument image, Size size, double xMargin = 1, double yMargin = 1, bool preserveAspectRatio = true)
+        public static Image ResizeImage(SvgDocument image, Size size, double xMargin = 0, double yMargin = 0, bool preserveAspectRatio = true)
         {
-            int newWidth;
-            int newHeight;
-
-            var originalWidth = image.Width.Value;
-            var originalHeight = image.Height.Value;
-
-            float percentWidth = (float)size.Width / (float)originalWidth;
-            float percentHeight = (float)size.Height / (float)originalHeight;
-            float percent = percentHeight < percentWidth ? percentHeight : percentWidth;
-
-            newWidth = (int)((originalWidth * percent) * xMargin);
-            newHeight = (int)((originalHeight * percent) * yMargin);
-
-            image.Transforms.Add(new SvgScale(newWidth / originalWidth, newHeight / originalHeight));
-
-            var xPosition = (size.Width - newWidth) / 2;
-            var yPosition = (size.Height - newHeight) / 2;
-
-            var newImage = new Bitmap(size.Width, size.Height);
-
-            using (Graphics graphicsHandle = Graphics.FromImage(newImage))
+            var originalImageSize = new Size((int)image.Width.Value, (int)image.Height.Value);
+            return ResizeImage((newImage, x, y, width, height) =>
             {
-                graphicsHandle.InterpolationMode = InterpolationMode.HighQualityBicubic;
-                using (var bitmap = image.Draw(newWidth + 10, newHeight + 10))
+                using (Graphics graphicsHandle = Graphics.FromImage(newImage))
                 {
-                    bitmap.MakeTransparent();
-                    graphicsHandle.DrawImage(bitmap, xPosition, yPosition);
+                    graphicsHandle.InterpolationMode = InterpolationMode.Default;
+                    using (var bitmap = image.Draw(width, height))
+                    {
+                        bitmap.MakeTransparent();
+                        graphicsHandle.DrawImage(bitmap, x, y);
+                    }
                 }
-            }
-
-            return newImage;
+            },
+            originalImageSize,
+            size,
+            xMargin,
+            yMargin,
+            preserveAspectRatio);
         }
 
         /// <summary>
@@ -218,17 +205,50 @@ namespace UWPTileGenerator
         /// <param name="yMargin">The y margin.</param>
         /// <param name="preserveAspectRatio">if set to <c>true</c> [preserve aspect ratio].</param>
         /// <returns></returns>
-        public static Image ResizeImage(Bitmap image, Size size, double xMargin = 1, double yMargin = 1, bool preserveAspectRatio = true)
+        public static Image ResizeImage(Bitmap image, Size size, double xMargin = 0, double yMargin = 0, bool preserveAspectRatio = true)
+        {
+            var originalImageSize = new Size(image.Width, image.Height);
+            return ResizeImage((newImage, x, y, width, height) =>
+            {
+                var firstPixel = image.GetPixel(0, 0);
+                var brush = new SolidBrush(firstPixel);
+
+                using (var graphicsHandle = Graphics.FromImage(newImage))
+                {
+                    graphicsHandle.InterpolationMode = InterpolationMode.Default;
+                    graphicsHandle.FillRectangle(brush, new Rectangle(0, 0, size.Width, size.Height));
+                    graphicsHandle.DrawImage(image, x, y, width, height);
+                }
+            },
+            originalImageSize,
+            size,
+            xMargin,
+            yMargin,
+            preserveAspectRatio);
+        }
+
+        /// <summary>
+        /// Resizes the image.
+        /// </summary>
+        /// <param name="action">The action.</param>
+        /// <param name="originalImageSize">Size of the original image.</param>
+        /// <param name="requestedSize">Size of the requested.</param>
+        /// <param name="xMargin">The x margin.</param>
+        /// <param name="yMargin">The y margin.</param>
+        /// <param name="preserveAspectRatio">if set to <c>true</c> [preserve aspect ratio].</param>
+        /// <returns></returns>
+        private static Bitmap ResizeImage(Action<Bitmap, int, int, int, int> action, Size originalImageSize, Size requestedSize, double xMargin = 1, double yMargin = 1, bool preserveAspectRatio = true)
         {
             int newWidth;
             int newHeight;
+
             if (preserveAspectRatio)
             {
-                var originalWidth = image.Width;
-                var originalHeight = image.Height;
+                var originalWidth = originalImageSize.Width;
+                var originalHeight = originalImageSize.Height;
 
-                var percentWidth = size.Width / (float)originalWidth;
-                var percentHeight = size.Height / (float)originalHeight;
+                var percentWidth = requestedSize.Width / (float)originalWidth;
+                var percentHeight = requestedSize.Height / (float)originalHeight;
                 var percent = percentHeight < percentWidth ? percentHeight : percentWidth;
 
                 newWidth = (int)(originalWidth * percent * xMargin);
@@ -236,23 +256,16 @@ namespace UWPTileGenerator
             }
             else
             {
-                newWidth = size.Width;
-                newHeight = size.Height;
+                newWidth = requestedSize.Width;
+                newHeight = requestedSize.Height;
             }
 
-            var xPosition = (size.Width - newWidth) / 2;
-            var yPosition = (size.Height - newHeight) / 2;
+            var xPosition = (requestedSize.Width - newWidth) / 2;
+            var yPosition = (requestedSize.Height - newHeight) / 2;
 
-            var newImage = new Bitmap(size.Width, size.Height);
-            var firstPixel = image.GetPixel(0, 0);
-            var brush = new SolidBrush(firstPixel);
-            
-            using (var graphicsHandle = Graphics.FromImage(newImage))
-            {
-                graphicsHandle.InterpolationMode = InterpolationMode.Default;
-                graphicsHandle.FillRectangle(brush, new Rectangle(0, 0, size.Width, size.Height));
-                graphicsHandle.DrawImage(image, xPosition, yPosition, newWidth, newHeight);
-            }
+            var newImage = new Bitmap(requestedSize.Width, requestedSize.Height);
+
+            action(newImage, xPosition, yPosition, newWidth, newHeight);
 
             return newImage;
         }
