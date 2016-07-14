@@ -1,3 +1,10 @@
+UWP Tile Generator V2.1
+======================================================
+- Bug fixes on SVG images
+- Bug fixes on margins for 44x44 App list icon
+- Performance improvements
+
+
 UWP Tile Generator V2.0
 ======================================================
 - Supports SVG files
