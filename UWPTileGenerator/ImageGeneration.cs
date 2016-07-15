@@ -129,12 +129,25 @@ namespace UWPTileGenerator
             double xMarginSize = 1;
             double yMarginSize = 1;
 
-            if (sizeKey.StartsWith("Square44x44Logo"))
+            if (sizeKey.StartsWith("Square44x44Logo.scale"))
             {
                 xMarginSize = 0.75;
                 yMarginSize = 0.75;
             }
-            if (sizeKey.StartsWith("Square71x71Logo"))
+            else if (sizeKey.StartsWith("Square44x44Logo.targetsize"))
+            {
+                if (sizeKey.EndsWith("unplated.png"))
+                {
+                    xMarginSize = 1;
+                    yMarginSize = 1;
+                }
+                else
+                {
+                    xMarginSize = 0.66;
+                    yMarginSize = 0.66;
+                }
+            }
+            else if (sizeKey.StartsWith("Square71x71Logo"))
             {
                 xMarginSize = 0.5;
                 yMarginSize = 0.5;
