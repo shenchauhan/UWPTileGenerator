@@ -1,4 +1,4 @@
-# UWPTileGenerator
+# UWP Tile Generator
 This is the home of the UWP Tile Generator which can provide the tiles you need to submit your application to the store from a single high resolution source file or SVG.
 
 The project is a Visual Studio extension which can download from here:
